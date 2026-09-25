@@ -71,6 +71,7 @@
         "read_only_root": {"const": true, "default": true},
         "drop_capabilities": {"const": true, "default": true},
         "no_new_privileges": {"const": true, "default": true},
+        "run_as_host_user": {"const": true, "default": true},
         "pids_limit": {
           "type": "integer",
           "minimum": 16,
