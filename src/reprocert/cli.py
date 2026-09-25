@@ -9,6 +9,8 @@ from typing import Any
 from . import __version__
 from .attestation import PREDICATE_TYPE, predicate_from_certificate
 from .claim import ClaimError, load_claim
+from .doctor import run_doctor
+from .init_project import InitError, initialize_project
 from .policy import PolicyError, evaluate_policy, load_policy
 from .pytest_adapter import run_pytest_adapter
 from .runner import EvidenceResolutionError, run_claim
@@ -35,6 +37,30 @@ def build_parser() -> argparse.ArgumentParser:
         version=f"%(prog)s {__version__}",
     )
     sub = parser.add_subparsers(dest="command", required=True)
+
+    p = sub.add_parser(
+        "init",
+        help="Create a self-service ReproCert configuration",
+    )
+    p.add_argument(
+        "profile",
+        nargs="?",
+        choices=["pytest", "command", "benchmark"],
+        help="Profile to scaffold; auto-detected when omitted",
+    )
+    p.add_argument("--target", default=".")
+    p.add_argument("--github-actions", action="store_true")
+    p.add_argument("--force", action="store_true")
+    p.add_argument("--json", action="store_true")
+
+    p = sub.add_parser(
+        "doctor",
+        help="Check whether the current project is ready to use ReproCert",
+    )
+    p.add_argument("--root", default=".")
+    p.add_argument("--claim")
+    p.add_argument("--require-docker", action="store_true")
+    p.add_argument("--json", action="store_true")
 
     p = sub.add_parser("run", help="Run one claim and emit a certificate")
     p.add_argument("claim")
@@ -108,6 +134,10 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
+        if args.command == "init":
+            return _init(args)
+        if args.command == "doctor":
+            return _doctor(args)
         if args.command == "run":
             return _run(args)
         if args.command == "pytest":
@@ -126,6 +156,7 @@ def main(argv: list[str] | None = None) -> int:
             return _diff(args)
     except (
         ClaimError,
+        InitError,
         SuiteError,
         PolicyError,
         EvidenceResolutionError,
@@ -136,6 +167,46 @@ def main(argv: list[str] | None = None) -> int:
         print(f"reprocert: {exc}", file=sys.stderr)
         return 2
     return 2
+
+
+def _init(args: argparse.Namespace) -> int:
+    result = initialize_project(
+        args.target,
+        profile=args.profile,
+        github_actions=args.github_actions,
+        force=args.force,
+    )
+    payload = {
+        "profile": result.profile,
+        "created": list(result.created),
+    }
+    if args.json:
+        print(json.dumps(payload, sort_keys=True))
+    else:
+        print(f"ReproCert initialized: {result.profile}")
+        for path in result.created:
+            print(f"- created: {path}")
+        print("Next: reprocert doctor")
+        print("Then: reprocert run reprocert.yml -o reprocert-certificate.json")
+    return 0
+
+
+def _doctor(args: argparse.Namespace) -> int:
+    result = run_doctor(
+        args.root,
+        claim_path=args.claim,
+        require_docker=args.require_docker,
+    )
+    if args.json:
+        print(json.dumps(result, sort_keys=True))
+    else:
+        print(f"ReproCert doctor: {result['status']}")
+        for check in result["checks"]:
+            print(
+                f"- {check['status']}: {check['name']} — "
+                f"{check['detail']}"
+            )
+    return 0 if result["status"] == "PASS" else 1
 
 
 def _run(args: argparse.Namespace) -> int:
