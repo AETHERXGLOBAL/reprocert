@@ -42,12 +42,24 @@ jobs:
           reprocert verify certificate.json --claim claim.yml --evidence-root .
           reprocert inspect certificate.json --json
 
+      - name: Policy gate round-trip
+        working-directory: examples/basic
+        shell: bash
+        run: |
+          reprocert policy certificate.json ../policy/strict-ci.yml             --output policy-result.json             --json
+
       - name: JUnit adapter round-trip
         working-directory: examples/junit
         shell: bash
         run: |
           reprocert run claim.yml --output certificate.json
           reprocert verify certificate.json --claim claim.yml --evidence-root .
+
+      - name: Pytest-native adapter round-trip
+        shell: bash
+        run: |
+          reprocert pytest             --workdir examples/pytest-native             --output pytest-native-certificate.json             --             -q
+          reprocert verify             pytest-native-certificate.json             --claim examples/pytest-native/.reprocert-pytest-claim.json             --evidence-root examples/pytest-native
 
       - name: Multi-claim suite round-trip
         working-directory: examples
@@ -74,6 +86,93 @@ jobs:
         run: |
           test "${{ steps.reprocert.outputs.verdict }}" = "PASS"
           test -n "${{ steps.reprocert.outputs.certificate-digest }}"
+
+  container-profile:
+    name: Hardened container profile / Ubuntu
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+
+      - name: Resolve immutable Alpine image identity
+        shell: bash
+        run: |
+          docker pull alpine:3.20
+          image="$(docker image inspect alpine:3.20 --format '{{index .RepoDigests 0}}')"
+          echo "REPROCERT_TEST_IMAGE=$image" >> "$GITHUB_ENV"
+
+      - name: Create digest-pinned container claim
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          claim = {
+              "apiVersion": "reprocert.dev/v1alpha1",
+              "kind": "ReproducibilityClaim",
+              "metadata": {
+                  "id": "container-profile-smoke",
+                  "title": "Hardened container execution profile",
+              },
+              "spec": {
+                  "command": ["sh", "-c", "printf ok > result.txt"],
+                  "container": {
+                      "engine": "docker",
+                      "image": os.environ["REPROCERT_TEST_IMAGE"],
+                      "network": "none",
+                      "read_only_root": True,
+                      "drop_capabilities": True,
+                      "no_new_privileges": True,
+                      "pids_limit": 128,
+                  },
+                  "evidence": ["result.txt"],
+                  "checks": [
+                      {
+                          "id": "container-result",
+                          "source": {"type": "text", "path": "result.txt"},
+                          "op": "eq",
+                          "expected": "ok",
+                      }
+                  ],
+              },
+          }
+          Path("container-claim.json").write_text(
+              json.dumps(claim, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Execute digest-pinned container claim
+        run: |
+          reprocert run container-claim.json --output container-certificate.json
+          reprocert policy             container-certificate.json             examples/policy/container-required.yml             --output container-policy-result.json
+          reprocert inspect container-certificate.json --json
+
+      - name: Assert hardened profile evidence
+        shell: python
+        run: |
+          import json
+          import os
+          from pathlib import Path
+
+          cert = json.loads(Path("container-certificate.json").read_text())
+          profile = cert["run"]["container"]
+          assert profile["image"] == os.environ["REPROCERT_TEST_IMAGE"]
+          assert profile["network"] == "none"
+          assert profile["read_only_root"] is True
+          assert profile["drop_capabilities"] is True
+          assert profile["no_new_privileges"] is True
+          assert cert["verdict"] == "PASS"
 
   package:
     name: Build package

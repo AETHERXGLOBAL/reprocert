@@ -4,22 +4,34 @@ All notable public project changes are recorded here.
 
 The project is pre-1.0; interfaces may evolve while the public alpha is hardened.
 
-## Unreleased — v0.2 development line
+## Unreleased — v0.2.1 adoption layer
 
 ### Added
 
-- `reprocert suite` for multi-claim execution and aggregate reports;
-- JUnit XML observation source with bounded aggregate metrics;
-- `reprocert predicate` for privacy-minimized custom attestation predicates;
-- JSON output for `reprocert inspect`;
-- reusable Action output for certificate digest;
-- suite, JUnit and custom predicate schemas/examples;
-- expanded adversarial coverage.
+- `reprocert pytest` native convenience adapter;
+- accepted exit-code contracts so domain failures can remain `FAIL` rather than becoming `ERROR`;
+- digest-pinned hardened Docker execution profile;
+- `reprocert policy` and machine-readable policy results;
+- policy schema and reference policies;
+- real Docker integration validation on GitHub-hosted Ubuntu;
+- JUnit XML evidence size limit.
 
-### Changed
+### Security / semantics
 
-- package identity advanced to `0.2.0a1`;
-- reference attestation workflow now emits both general producer provenance and a custom ReproCert predicate attestation.
+- mutable container image tags are rejected;
+- container profile forces network-none, read-only root, capability drop and no-new-privileges;
+- policy evaluation verifies certificate integrity before applying acceptance rules;
+- policy results remain separate from claim verdicts.
+
+## v0.2.0a1 — Integration-depth development line
+
+### Added
+
+- multi-claim suites;
+- JUnit XML observations;
+- privacy-minimized custom attestation predicate;
+- richer automation outputs;
+- general + custom GitHub Artifact Attestation reference flow.
 
 ## 0.1.0a1 — Initial public-alpha package identity
 

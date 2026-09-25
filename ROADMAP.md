@@ -22,7 +22,7 @@ Completed baseline:
 
 ## v0.2 — Integration depth
 
-Implemented on the v0.2 development line:
+Established:
 
 - [x] multi-claim suite execution and aggregate reports
 - [x] direct JUnit XML metrics adapter
@@ -33,12 +33,25 @@ Implemented on the v0.2 development line:
 - [x] expanded adversarial tests for XML and suite boundaries
 - [x] CI-provider-neutral CLI integration guidance
 
-Still open for later v0.2.x evaluation:
+## v0.2.1 — Adoption layer
 
-- [ ] pytest-native convenience adapter beyond JUnit interoperability
-- [ ] deterministic container-runner profile
-- [ ] policy hooks that preserve verdict semantics
-- [ ] wider external integration feedback
+Implemented on the current development line:
+
+- [x] pytest-native convenience adapter with test-failure semantics preserved
+- [x] digest-pinned hardened Docker execution profile
+- [x] policy layer separate from certificate verdict semantics
+- [x] policy integrity pre-check
+- [x] accepted-exit-code contracts for adapters
+- [x] real Docker integration gate on GitHub-hosted Ubuntu
+- [x] JUnit evidence size bound
+- [x] adoption-focused examples and documentation
+
+Still open for evidence-driven follow-up:
+
+- [ ] external project integration feedback
+- [ ] additional policy rules justified by real use cases
+- [ ] container-runtime portability beyond the validated Linux/Docker path
+- [ ] stable pre-1.0 compatibility policy based on adopter feedback
 
 ## v0.3 — Reproducibility systems research
 
@@ -53,4 +66,4 @@ Research candidates:
 
 ## Explicit non-goal
 
-ReproCert will not turn a successful execution into an unsupported claim of scientific truth, security, or universal correctness.
+ReproCert will not turn a successful execution into an unsupported claim of scientific truth, security, determinism, or universal correctness.
