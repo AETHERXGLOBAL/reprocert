@@ -40,7 +40,20 @@ jobs:
         run: |
           reprocert run claim.yml --output certificate.json
           reprocert verify certificate.json --claim claim.yml --evidence-root .
-          reprocert inspect certificate.json
+          reprocert inspect certificate.json --json
+
+      - name: JUnit adapter round-trip
+        working-directory: examples/junit
+        shell: bash
+        run: |
+          reprocert run claim.yml --output certificate.json
+          reprocert verify certificate.json --claim claim.yml --evidence-root .
+
+      - name: Multi-claim suite round-trip
+        working-directory: examples
+        shell: bash
+        run: |
+          reprocert suite suite.yml             --output suite-report.json             --certificate-dir .reprocert/certificates             --json
 
   action-smoke:
     name: Reusable Action smoke test
@@ -56,9 +69,11 @@ jobs:
           claim: examples/basic/claim.yml
           certificate: reprocert-action-certificate.json
 
-      - name: Assert exported verdict
+      - name: Assert exported verdict and digest
         shell: bash
-        run: test "${{ steps.reprocert.outputs.verdict }}" = "PASS"
+        run: |
+          test "${{ steps.reprocert.outputs.verdict }}" = "PASS"
+          test -n "${{ steps.reprocert.outputs.certificate-digest }}"
 
   package:
     name: Build package
