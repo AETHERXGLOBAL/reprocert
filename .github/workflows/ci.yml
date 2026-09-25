@@ -58,7 +58,7 @@ jobs:
       - name: Pytest-native adapter round-trip
         shell: bash
         run: |
-          reprocert pytest             --workdir examples/pytest-native             --output pytest-native-certificate.json             --             -q
+          reprocert pytest --workdir examples/pytest-native --output pytest-native-certificate.json -- -q test_sample.py
           reprocert verify             pytest-native-certificate.json             --claim examples/pytest-native/.reprocert-pytest-claim.json             --evidence-root examples/pytest-native
 
       - name: Multi-claim suite round-trip
@@ -153,9 +153,27 @@ jobs:
           PY
 
       - name: Execute digest-pinned container claim
+        shell: bash
         run: |
+          set +e
           reprocert run container-claim.json --output container-certificate.json
-          reprocert policy             container-certificate.json             examples/policy/container-required.yml             --output container-policy-result.json
+          rc=$?
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          cert = json.loads(Path("container-certificate.json").read_text())
+          print(json.dumps({
+              "verdict": cert["verdict"],
+              "exit_code": cert["run"]["exit_code"],
+              "execution_error": cert["run"]["execution_error"],
+              "stderr_excerpt": cert["run"]["stderr_excerpt"],
+              "container": cert["run"].get("container"),
+          }, indent=2))
+          PY
+          if [ "$rc" -ne 0 ]; then
+            exit "$rc"
+          fi
+          reprocert policy container-certificate.json examples/policy/container-required.yml --output container-policy-result.json
           reprocert inspect container-certificate.json --json
 
       - name: Assert hardened profile evidence
