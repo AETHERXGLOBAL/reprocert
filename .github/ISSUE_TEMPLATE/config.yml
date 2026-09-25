@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security guidance
+    url: https://github.com/AETHERXGLOBAL/reprocert/blob/main/SECURITY.md
+    about: Do not publish sensitive vulnerability details in a public issue.
+  - name: Support guidance
+    url: https://github.com/AETHERXGLOBAL/reprocert/blob/main/SUPPORT.md
+    about: Read the support boundary before opening a public issue.

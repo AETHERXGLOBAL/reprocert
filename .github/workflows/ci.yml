@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ['3.11', '3.13', '3.14']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+
+      - name: Unit and adversarial tests
+        run: pytest
+
+      - name: Reference claim round-trip
+        working-directory: examples/basic
+        shell: bash
+        run: |
+          reprocert run claim.yml --output certificate.json
+          reprocert verify certificate.json --claim claim.yml --evidence-root .
+          reprocert inspect certificate.json
+
+  action-smoke:
+    name: Reusable Action smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Execute ReproCert Action
+        id: reprocert
+        uses: ./
+        with:
+          claim: examples/basic/claim.yml
+          certificate: reprocert-action-certificate.json
+
+      - name: Assert exported verdict
+        shell: bash
+        run: test "${{ steps.reprocert.outputs.verdict }}" = "PASS"
+
+  package:
+    name: Build package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+
+      - name: Build isolated package
+        run: |
+          python -m pip install build
+          python -m build
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: reprocert-dist
+          path: dist/*
+          if-no-files-found: error

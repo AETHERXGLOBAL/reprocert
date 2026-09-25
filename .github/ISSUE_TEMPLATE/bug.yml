@@ -1,0 +1,71 @@
+name: Bug report
+description: Report a reproducible defect in ReproCert.
+title: "[Bug] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve ReproCert. Do not include credentials, private source code, customer data, or sensitive vulnerability details.
+
+  - type: input
+    id: version
+    attributes:
+      label: ReproCert version or commit
+      placeholder: 0.1.0a1 or commit SHA
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected surface
+      options:
+        - CLI
+        - GitHub Action
+        - Claim schema
+        - Certificate verification
+        - Evidence collection
+        - Packaging / installation
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Provide the smallest non-sensitive example that reproduces the issue.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior
+    validations:
+      required: true
+
+  - type: input
+    id: platform
+    attributes:
+      label: Platform and Python version
+      placeholder: Ubuntu 24.04 / Python 3.13
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Public issue safety
+      options:
+        - label: I confirm this report contains no credentials, confidential data, private source code, or sensitive exploit details.
+          required: true

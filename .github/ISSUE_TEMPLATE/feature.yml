@@ -1,0 +1,45 @@
+name: Feature proposal
+description: Propose a developer-facing capability for ReproCert.
+title: "[Feature] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Strong proposals start from a concrete developer problem and explain the evidence/trust semantics before implementation detail.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Developer problem
+      description: What workflow is difficult, ambiguous, or unreliable today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed capability
+      description: Describe the smallest useful capability.
+    validations:
+      required: true
+
+  - type: textarea
+    id: semantics
+    attributes:
+      label: Evidence and verdict semantics
+      description: How should PASS, FAIL, INCONCLUSIVE, or ERROR behave if relevant?
+
+  - type: textarea
+    id: trust
+    attributes:
+      label: Trust-boundary impact
+      description: Does this affect signing, producer identity, evidence trust, remote execution, secrets, or code execution?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Existing tools or alternatives
+      description: Which adjacent tools or standards already solve part of the problem?

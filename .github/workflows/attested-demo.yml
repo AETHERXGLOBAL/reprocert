@@ -1,0 +1,56 @@
+name: Attested Demo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'examples/**'
+      - 'schemas/**'
+      - 'pyproject.toml'
+      - 'action.yml'
+      - '.github/workflows/attested-demo.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+  artifact-metadata: write
+
+jobs:
+  certificate:
+    name: Produce and attest reference certificate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+
+      - name: Install ReproCert
+        run: python -m pip install .
+
+      - name: Produce reference certificate
+        working-directory: examples/basic
+        run: reprocert run claim.yml --output reprocert-certificate.json
+
+      - name: Verify certificate and evidence locally
+        working-directory: examples/basic
+        run: reprocert verify reprocert-certificate.json --claim claim.yml --evidence-root .
+
+      - name: Attest certificate producer provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: examples/basic/reprocert-certificate.json
+
+      - name: Upload certificate
+        uses: actions/upload-artifact@v7
+        with:
+          name: reprocert-reference-certificate
+          path: examples/basic/reprocert-certificate.json
+          if-no-files-found: error
