@@ -1,0 +1,14 @@
+apiVersion: reprocert.dev/policy/v1alpha1
+kind: ReproCertPolicy
+metadata:
+  id: reference-ci-policy
+  title: Reference CI acceptance policy
+spec:
+  allowed_verdicts: [PASS]
+  require_ci: true
+  min_evidence_files: 1
+  max_diagnostics: 0
+  required_check_ids:
+    - record-count
+    - sum
+    - stdout-has-result

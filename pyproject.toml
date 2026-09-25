@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aetherx-reprocert"
-version = "0.2.0a1"
+version = "0.2.1a1"
 description = "Claim-to-evidence reproducibility certificates for software, AI and research workflows."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -32,7 +32,7 @@ Source = "https://github.com/AETHERXGLOBAL/reprocert"
 
 [project.optional-dependencies]
 dev = [
-  "pytest>=8.3,<9",
+  "pytest>=8.3,<10",
   "build>=1.2,<2",
 ]
 

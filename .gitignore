@@ -6,4 +6,11 @@ build/
 *.egg-info/
 certificate.json
 reprocert-certificate.json
+reprocert-pytest-certificate.json
+reprocert-policy-result.json
+reprocert-predicate.json
+reprocert-suite-report.json
 result.json
+.reprocert/
+.reprocert-pytest-claim.json
+.reprocert-pytest-junit.xml
