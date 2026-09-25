@@ -1,0 +1,58 @@
+name: PyPI Zero-Contact Consumer Proof
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/pypi-consumer-proof.yml'
+      - 'README.md'
+      - 'docs/QUICKSTART_5_MIN.md'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/pypi-consumer-proof.yml'
+      - 'README.md'
+      - 'docs/QUICKSTART_5_MIN.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pypi-consumer:
+    name: Install from PyPI and complete self-service round-trip
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+
+      - name: Install exactly as documented
+        run: |
+          python -m pip install --no-cache-dir aetherx-reprocert
+          reprocert --version
+          python -m pip show aetherx-reprocert
+
+      - name: Zero-contact self-service round-trip
+        shell: bash
+        run: |
+          mkdir consumer
+          cd consumer
+          reprocert init command --github-actions
+          reprocert doctor
+          reprocert run reprocert.yml -o certificate.json
+          reprocert verify certificate.json --claim reprocert.yml --evidence-root .
+          grep -q "AETHERXGLOBAL/reprocert@v0.2" .github/workflows/reprocert.yml
+
+      - name: Assert published package identity
+        shell: python
+        run: |
+          import importlib.metadata
+
+          version = importlib.metadata.version("aetherx-reprocert")
+          if version != "0.2.2a1":
+              raise SystemExit(
+                  f"Unexpected published package version: {version!r}"
+              )
+          print(f"PyPI package verified: aetherx-reprocert=={version}")
