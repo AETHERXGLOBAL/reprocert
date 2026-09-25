@@ -11,6 +11,7 @@ from .util import canonical_json_bytes, sha256_bytes
 
 CLAIM_API_VERSION = "reprocert.dev/v1alpha1"
 CLAIM_KIND = "ReproducibilityClaim"
+JUNIT_METRICS = {"tests", "failures", "errors", "skipped", "passed", "time_seconds"}
 
 
 class ClaimError(ValueError):
@@ -51,10 +52,7 @@ def load_claim(path: str | Path) -> Claim:
         raise ClaimError(f"Cannot read claim file: {exc}") from exc
 
     try:
-        if claim_path.suffix.lower() == ".json":
-            raw = json.loads(text)
-        else:
-            raw = yaml.safe_load(text)
+        raw = json.loads(text) if claim_path.suffix.lower() == ".json" else yaml.safe_load(text)
     except (json.JSONDecodeError, yaml.YAMLError) as exc:
         raise ClaimError(f"Invalid claim syntax: {exc}") from exc
 
@@ -94,39 +92,64 @@ def validate_claim(raw: dict[str, Any]) -> None:
     checks = spec.get("checks", [])
     if not isinstance(checks, list) or not checks:
         raise ClaimError("spec.checks must contain at least one check")
+
     seen: set[str] = set()
     for check in checks:
         if not isinstance(check, dict):
             raise ClaimError("Each check must be an object")
+
         check_id = check.get("id")
         if not isinstance(check_id, str) or not check_id:
             raise ClaimError("Each check requires a non-empty id")
         if check_id in seen:
             raise ClaimError(f"Duplicate check id: {check_id}")
         seen.add(check_id)
+
         source = check.get("source")
         if not isinstance(source, dict):
             raise ClaimError(f"Check {check_id}: source must be an object")
+
         source_type = source.get("type")
-        if source_type not in {"json", "text", "stdout", "stderr", "exit_code", "file_sha256", "file_size"}:
+        if source_type not in {
+            "json",
+            "text",
+            "stdout",
+            "stderr",
+            "exit_code",
+            "file_sha256",
+            "file_size",
+            "junit",
+        }:
             raise ClaimError(f"Check {check_id}: unsupported source type {source_type!r}")
-        if source_type in {"json", "text", "file_sha256", "file_size"}:
+
+        if source_type in {"json", "text", "file_sha256", "file_size", "junit"}:
             path = source.get("path")
             if not isinstance(path, str) or not path:
                 raise ClaimError(f"Check {check_id}: source.path is required")
             _validate_relative_path(path, f"check {check_id} source")
+
         if source_type == "json" and not isinstance(source.get("pointer", ""), str):
             raise ClaimError(f"Check {check_id}: source.pointer must be a string")
+
+        if source_type == "junit":
+            metric = source.get("metric")
+            if metric not in JUNIT_METRICS:
+                raise ClaimError(
+                    f"Check {check_id}: source.metric must be one of {sorted(JUNIT_METRICS)}"
+                )
 
         op = check.get("op")
         if op not in {"eq", "ne", "lt", "le", "gt", "ge", "approx", "contains"}:
             raise ClaimError(f"Check {check_id}: unsupported op {op!r}")
         if "expected" not in check:
             raise ClaimError(f"Check {check_id}: expected is required")
+
         if op == "approx":
             tol = check.get("abs_tolerance")
             if not isinstance(tol, (int, float)) or isinstance(tol, bool) or tol < 0:
-                raise ClaimError(f"Check {check_id}: abs_tolerance must be a non-negative number")
+                raise ClaimError(
+                    f"Check {check_id}: abs_tolerance must be a non-negative number"
+                )
 
 
 def _validate_relative_path(value: str, label: str) -> None:

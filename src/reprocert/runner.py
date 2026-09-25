@@ -11,6 +11,7 @@ from . import __version__
 from .certificate import CERT_API_VERSION, CERT_KIND, seal_certificate
 from .claim import Claim
 from .environment import capture_environment
+from .junit import read_junit_metrics
 from .util import json_pointer, sha256_bytes, sha256_file
 
 
@@ -65,7 +66,9 @@ def run_claim(claim: Claim) -> dict[str, Any]:
     if execution_error is None:
         for check in spec["checks"]:
             try:
-                observed = _resolve_source(check["source"], working_dir, stdout, stderr, exit_code)
+                observed = _resolve_source(
+                    check["source"], working_dir, stdout, stderr, exit_code
+                )
                 passed, reason = _evaluate(check, observed)
                 check_results.append(
                     {
@@ -94,14 +97,20 @@ def run_claim(claim: Claim) -> dict[str, Any]:
                     }
                 )
 
-    evidence_records, evidence_errors = _collect_evidence(spec.get("evidence", []), working_dir)
+    evidence_records, evidence_errors = _collect_evidence(
+        spec.get("evidence", []), working_dir
+    )
     resolution_errors.extend(evidence_errors)
 
-    if execution_error is not None or timed_out or (exit_code is not None and exit_code != expected_exit_code):
+    if execution_error is not None or timed_out or (
+        exit_code is not None and exit_code != expected_exit_code
+    ):
         verdict = "ERROR"
-    elif resolution_errors or any(c["status"] == "INCONCLUSIVE" for c in check_results):
+    elif resolution_errors or any(
+        check["status"] == "INCONCLUSIVE" for check in check_results
+    ):
         verdict = "INCONCLUSIVE"
-    elif any(c["status"] == "FAIL" for c in check_results):
+    elif any(check["status"] == "FAIL" for check in check_results):
         verdict = "FAIL"
     else:
         verdict = "PASS"
@@ -147,24 +156,47 @@ def _safe_join(base: Path, rel: str) -> Path:
     try:
         candidate.relative_to(base.resolve())
     except ValueError as exc:
-        raise EvidenceResolutionError(f"Path escapes claim directory: {rel!r}") from exc
+        raise EvidenceResolutionError(
+            f"Path escapes claim directory: {rel!r}"
+        ) from exc
     return candidate
 
 
-def _resolve_source(source: dict[str, Any], working_dir: Path, stdout: str, stderr: str, exit_code: int | None) -> Any:
+def _resolve_source(
+    source: dict[str, Any],
+    working_dir: Path,
+    stdout: str,
+    stderr: str,
+    exit_code: int | None,
+) -> Any:
     source_type = source["type"]
-    if source_type == "stdout": return stdout
-    if source_type == "stderr": return stderr
-    if source_type == "exit_code": return exit_code
+
+    if source_type == "stdout":
+        return stdout
+    if source_type == "stderr":
+        return stderr
+    if source_type == "exit_code":
+        return exit_code
+
     path = _safe_join(working_dir, source["path"])
     if not path.is_file():
-        raise EvidenceResolutionError(f"Required source file not found: {source['path']}")
-    if source_type == "text": return path.read_text(encoding="utf-8")
+        raise EvidenceResolutionError(
+            f"Required source file not found: {source['path']}"
+        )
+
+    if source_type == "text":
+        return path.read_text(encoding="utf-8")
     if source_type == "json":
         doc = json.loads(path.read_text(encoding="utf-8"))
         return json_pointer(doc, source.get("pointer", ""))
-    if source_type == "file_sha256": return sha256_file(path)
-    if source_type == "file_size": return path.stat().st_size
+    if source_type == "file_sha256":
+        return sha256_file(path)
+    if source_type == "file_size":
+        return path.stat().st_size
+    if source_type == "junit":
+        metrics = read_junit_metrics(path)
+        return metrics[source["metric"]]
+
     raise EvidenceResolutionError(f"Unsupported source type: {source_type}")
 
 
@@ -172,39 +204,63 @@ def _evaluate(check: dict[str, Any], observed: Any) -> tuple[bool, str]:
     expected = check["expected"]
     op = check["op"]
     try:
-        if op == "eq": passed = observed == expected
-        elif op == "ne": passed = observed != expected
-        elif op == "lt": passed = observed < expected
-        elif op == "le": passed = observed <= expected
-        elif op == "gt": passed = observed > expected
-        elif op == "ge": passed = observed >= expected
-        elif op == "approx": passed = abs(float(observed) - float(expected)) <= float(check["abs_tolerance"])
-        elif op == "contains": passed = expected in observed
-        else: raise ValueError(f"Unsupported operator: {op}")
+        if op == "eq":
+            passed = observed == expected
+        elif op == "ne":
+            passed = observed != expected
+        elif op == "lt":
+            passed = observed < expected
+        elif op == "le":
+            passed = observed <= expected
+        elif op == "gt":
+            passed = observed > expected
+        elif op == "ge":
+            passed = observed >= expected
+        elif op == "approx":
+            passed = abs(float(observed) - float(expected)) <= float(
+                check["abs_tolerance"]
+            )
+        elif op == "contains":
+            passed = expected in observed
+        else:
+            raise ValueError(f"Unsupported operator: {op}")
     except (TypeError, ValueError) as exc:
         raise EvidenceResolutionError(f"Cannot evaluate {op}: {exc}") from exc
     return bool(passed), f"observed {observed!r} {op} expected {expected!r}"
 
 
-def _collect_evidence(paths: list[str], working_dir: Path) -> tuple[list[dict[str, Any]], list[str]]:
+def _collect_evidence(
+    paths: list[str], working_dir: Path
+) -> tuple[list[dict[str, Any]], list[str]]:
     records: list[dict[str, Any]] = []
     errors: list[str] = []
+
     for rel in paths:
         path = _safe_join(working_dir, rel)
         if not path.is_file():
             errors.append(f"evidence missing: {rel}")
             continue
-        records.append({"path": rel, "sha256": sha256_file(path), "size": path.stat().st_size})
-    records.sort(key=lambda x: x["path"])
+        records.append(
+            {
+                "path": rel,
+                "sha256": sha256_file(path),
+                "size": path.stat().st_size,
+            }
+        )
+
+    records.sort(key=lambda item: item["path"])
     return records, errors
 
 
 def _excerpt(text: str, limit: int = 4096) -> str:
-    if len(text) <= limit: return text
+    if len(text) <= limit:
+        return text
     return text[:limit] + "\n…<truncated>"
 
 
 def _to_text(value: Any) -> str:
-    if value is None: return ""
-    if isinstance(value, bytes): return value.decode("utf-8", errors="replace")
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
     return str(value)
