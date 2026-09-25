@@ -1,0 +1,64 @@
+name: Stable v0.2 Channel Proof
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'action.yml'
+      - 'src/**'
+      - 'pyproject.toml'
+      - '.github/workflows/stable-channel-proof.yml'
+  pull_request:
+    paths:
+      - '.github/workflows/stable-channel-proof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  action-channel:
+    name: Consume AETHERXGLOBAL/reprocert@v0.2
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout consumer fixture
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Consume stable ReproCert action channel
+        id: reprocert
+        uses: AETHERXGLOBAL/reprocert@v0.2
+        with:
+          claim: examples/basic/claim.yml
+          certificate: stable-channel-certificate.json
+
+      - name: Assert stable action result
+        shell: bash
+        run: |
+          test "${{ steps.reprocert.outputs.verdict }}" = "PASS"
+          test -n "${{ steps.reprocert.outputs.certificate-digest }}"
+          test -f stable-channel-certificate.json
+
+  git-install-channel:
+    name: Self-service install from public v0.2 channel
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+
+      - name: Install directly from public stable channel
+        run: |
+          python -m pip install "git+https://github.com/AETHERXGLOBAL/reprocert.git@v0.2"
+          reprocert --version
+
+      - name: Zero-contact self-service round-trip
+        shell: bash
+        run: |
+          mkdir consumer
+          cd consumer
+          reprocert init command --github-actions
+          reprocert doctor
+          reprocert run reprocert.yml -o certificate.json
+          reprocert verify certificate.json --claim reprocert.yml --evidence-root .
+          grep -q "AETHERXGLOBAL/reprocert@v0.2" .github/workflows/reprocert.yml
