@@ -10,6 +10,11 @@ from typing import Any
 from . import __version__
 from .certificate import CERT_API_VERSION, CERT_KIND, seal_certificate
 from .claim import Claim
+from .container import (
+    build_docker_command,
+    docker_engine_metadata,
+    validate_container_profile,
+)
 from .environment import capture_environment
 from .junit import read_junit_metrics
 from .util import json_pointer, sha256_bytes, sha256_file
@@ -27,8 +32,21 @@ def run_claim(claim: Claim) -> dict[str, Any]:
         raise EvidenceResolutionError(f"Working directory does not exist: {working_dir}")
 
     command = list(spec["command"])
+    accepted_exit_codes = _accepted_exit_codes(spec)
     timeout = int(spec.get("timeout_seconds", 300))
-    expected_exit_code = int(spec.get("expected_exit_code", 0))
+
+    container_profile: dict[str, Any] | None = None
+    execution_command = command
+    container_engine: dict[str, Any] | None = None
+    if "container" in spec:
+        container_profile = validate_container_profile(spec["container"])
+        execution_command = build_docker_command(
+            container_profile,
+            working_dir,
+            command,
+        )
+        container_engine = docker_engine_metadata()
+
     started = datetime.now(timezone.utc)
     start_perf = time.perf_counter()
 
@@ -39,17 +57,17 @@ def run_claim(claim: Claim) -> dict[str, Any]:
     execution_error: str | None = None
 
     try:
-        cp = subprocess.run(
-            command,
+        completed = subprocess.run(
+            execution_command,
             cwd=working_dir,
             capture_output=True,
             text=True,
             timeout=timeout,
             shell=False,
         )
-        stdout = cp.stdout
-        stderr = cp.stderr
-        exit_code = cp.returncode
+        stdout = completed.stdout
+        stderr = completed.stderr
+        exit_code = completed.returncode
     except subprocess.TimeoutExpired as exc:
         timed_out = True
         stdout = _to_text(exc.stdout)
@@ -63,11 +81,15 @@ def run_claim(claim: Claim) -> dict[str, Any]:
 
     check_results: list[dict[str, Any]] = []
     resolution_errors: list[str] = []
-    if execution_error is None:
+    if execution_error is None and exit_code in accepted_exit_codes:
         for check in spec["checks"]:
             try:
                 observed = _resolve_source(
-                    check["source"], working_dir, stdout, stderr, exit_code
+                    check["source"],
+                    working_dir,
+                    stdout,
+                    stderr,
+                    exit_code,
                 )
                 passed, reason = _evaluate(check, observed)
                 check_results.append(
@@ -98,12 +120,15 @@ def run_claim(claim: Claim) -> dict[str, Any]:
                 )
 
     evidence_records, evidence_errors = _collect_evidence(
-        spec.get("evidence", []), working_dir
+        spec.get("evidence", []),
+        working_dir,
     )
     resolution_errors.extend(evidence_errors)
 
-    if execution_error is not None or timed_out or (
-        exit_code is not None and exit_code != expected_exit_code
+    if (
+        execution_error is not None
+        or timed_out
+        or exit_code not in accepted_exit_codes
     ):
         verdict = "ERROR"
     elif resolution_errors or any(
@@ -114,6 +139,30 @@ def run_claim(claim: Claim) -> dict[str, Any]:
         verdict = "FAIL"
     else:
         verdict = "PASS"
+
+    run_record: dict[str, Any] = {
+        "command": command,
+        "working_directory": str(spec.get("working_directory", ".")),
+        "timeout_seconds": timeout,
+        "accepted_exit_codes": accepted_exit_codes,
+        "started_at": started.isoformat(),
+        "ended_at": ended.isoformat(),
+        "duration_ms": duration_ms,
+        "exit_code": exit_code,
+        "timed_out": timed_out,
+        "execution_error": execution_error,
+        "stdout_sha256": sha256_bytes(stdout.encode("utf-8")),
+        "stderr_sha256": sha256_bytes(stderr.encode("utf-8")),
+        "stdout_excerpt": _excerpt(stdout),
+        "stderr_excerpt": _excerpt(stderr),
+    }
+    if len(accepted_exit_codes) == 1:
+        run_record["expected_exit_code"] = accepted_exit_codes[0]
+    if container_profile is not None:
+        run_record["container"] = {
+            **container_profile,
+            "engine_metadata": container_engine,
+        }
 
     certificate: dict[str, Any] = {
         "apiVersion": CERT_API_VERSION,
@@ -126,22 +175,7 @@ def run_claim(claim: Claim) -> dict[str, Any]:
             "tool_version": __version__,
         },
         "claim": {"path": claim.path.name, "sha256": claim.digest},
-        "run": {
-            "command": command,
-            "working_directory": str(spec.get("working_directory", ".")),
-            "timeout_seconds": timeout,
-            "expected_exit_code": expected_exit_code,
-            "started_at": started.isoformat(),
-            "ended_at": ended.isoformat(),
-            "duration_ms": duration_ms,
-            "exit_code": exit_code,
-            "timed_out": timed_out,
-            "execution_error": execution_error,
-            "stdout_sha256": sha256_bytes(stdout.encode("utf-8")),
-            "stderr_sha256": sha256_bytes(stderr.encode("utf-8")),
-            "stdout_excerpt": _excerpt(stdout),
-            "stderr_excerpt": _excerpt(stderr),
-        },
+        "run": run_record,
         "environment": capture_environment(working_dir),
         "checks": check_results,
         "evidence": evidence_records,
@@ -149,6 +183,12 @@ def run_claim(claim: Claim) -> dict[str, Any]:
         "verdict": verdict,
     }
     return seal_certificate(certificate)
+
+
+def _accepted_exit_codes(spec: dict[str, Any]) -> list[int]:
+    if "accepted_exit_codes" in spec:
+        return list(spec["accepted_exit_codes"])
+    return [int(spec.get("expected_exit_code", 0))]
 
 
 def _safe_join(base: Path, rel: str) -> Path:
@@ -170,7 +210,6 @@ def _resolve_source(
     exit_code: int | None,
 ) -> Any:
     source_type = source["type"]
-
     if source_type == "stdout":
         return stdout
     if source_type == "stderr":
@@ -183,12 +222,11 @@ def _resolve_source(
         raise EvidenceResolutionError(
             f"Required source file not found: {source['path']}"
         )
-
     if source_type == "text":
         return path.read_text(encoding="utf-8")
     if source_type == "json":
-        doc = json.loads(path.read_text(encoding="utf-8"))
-        return json_pointer(doc, source.get("pointer", ""))
+        document = json.loads(path.read_text(encoding="utf-8"))
+        return json_pointer(document, source.get("pointer", ""))
     if source_type == "file_sha256":
         return sha256_file(path)
     if source_type == "file_size":
@@ -196,7 +234,6 @@ def _resolve_source(
     if source_type == "junit":
         metrics = read_junit_metrics(path)
         return metrics[source["metric"]]
-
     raise EvidenceResolutionError(f"Unsupported source type: {source_type}")
 
 
@@ -230,11 +267,11 @@ def _evaluate(check: dict[str, Any], observed: Any) -> tuple[bool, str]:
 
 
 def _collect_evidence(
-    paths: list[str], working_dir: Path
+    paths: list[str],
+    working_dir: Path,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     records: list[dict[str, Any]] = []
     errors: list[str] = []
-
     for rel in paths:
         path = _safe_join(working_dir, rel)
         if not path.is_file():
@@ -247,7 +284,6 @@ def _collect_evidence(
                 "size": path.stat().st_size,
             }
         )
-
     records.sort(key=lambda item: item["path"])
     return records, errors
 

@@ -13,7 +13,7 @@ def run_pytest_adapter(
     *,
     working_directory: str | Path,
     pytest_args: list[str],
-    junit_path: str = ".reprocert/pytest/junit.xml",
+    junit_path: str = ".reprocert-pytest-junit.xml",
 ) -> tuple[dict[str, Any], Path]:
     workdir = Path(working_directory).resolve()
     if not workdir.is_dir():
@@ -23,9 +23,7 @@ def run_pytest_adapter(
     if junit_rel.is_absolute() or ".." in junit_rel.parts:
         raise ValueError("pytest JUnit path must stay inside the working directory")
 
-    generated_dir = workdir / ".reprocert" / "pytest"
-    generated_dir.mkdir(parents=True, exist_ok=True)
-    generated_claim = generated_dir / "claim.generated.json"
+    generated_claim = workdir / ".reprocert-pytest-claim.json"
 
     command = [
         sys.executable,
@@ -45,9 +43,6 @@ def run_pytest_adapter(
             "generated_by": "reprocert pytest",
         },
         "spec": {
-            "working_directory": str(workdir.relative_to(generated_claim.parent.parent.parent))
-            if False
-            else ".",
             "command": command,
             "accepted_exit_codes": [0, 1],
             "evidence": [junit_path],
@@ -82,7 +77,6 @@ def run_pytest_adapter(
         encoding="utf-8",
     )
 
-    claim = Claim(raw=raw, path=workdir / "claim.generated.json")
-    certificate = run_claim(claim)
+    certificate = run_claim(Claim(raw=raw, path=generated_claim))
     certificate.setdefault("metadata", {})["adapter"] = "pytest-native"
     return certificate, generated_claim
