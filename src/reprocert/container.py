@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -20,20 +21,30 @@ def validate_container_profile(raw: Any) -> dict[str, Any]:
 
     engine = raw.get("engine", "docker")
     if engine != "docker":
-        raise ContainerProfileError("Only the docker container engine is supported")
+        raise ContainerProfileError(
+            "Only the docker container engine is supported"
+        )
 
     image = raw.get("image")
     if not isinstance(image, str) or not IMAGE_DIGEST_RE.fullmatch(image):
         raise ContainerProfileError(
-            "spec.container.image must be pinned as name@sha256:<64 lowercase hex>"
+            "spec.container.image must be pinned as "
+            "name@sha256:<64 lowercase hex>"
         )
 
     if raw.get("network", "none") != "none":
         raise ContainerProfileError("Container network must be 'none'")
 
-    for key in ("read_only_root", "drop_capabilities", "no_new_privileges"):
+    for key in (
+        "read_only_root",
+        "drop_capabilities",
+        "no_new_privileges",
+        "run_as_host_user",
+    ):
         if raw.get(key, True) is not True:
-            raise ContainerProfileError(f"spec.container.{key} must remain true")
+            raise ContainerProfileError(
+                f"spec.container.{key} must remain true"
+            )
 
     pids_limit = raw.get("pids_limit", 256)
     if (
@@ -43,7 +54,8 @@ def validate_container_profile(raw: Any) -> dict[str, Any]:
         or pids_limit > 4096
     ):
         raise ContainerProfileError(
-            "spec.container.pids_limit must be an integer between 16 and 4096"
+            "spec.container.pids_limit must be an integer "
+            "between 16 and 4096"
         )
 
     return {
@@ -53,6 +65,7 @@ def validate_container_profile(raw: Any) -> dict[str, Any]:
         "read_only_root": True,
         "drop_capabilities": True,
         "no_new_privileges": True,
+        "run_as_host_user": True,
         "pids_limit": pids_limit,
     }
 
@@ -63,7 +76,17 @@ def build_docker_command(
     command: list[str],
 ) -> list[str]:
     validated = validate_container_profile(profile)
+
+    if not hasattr(os, "getuid") or not hasattr(os, "getgid"):
+        raise ContainerProfileError(
+            "The hardened Docker profile currently requires a POSIX host "
+            "with numeric UID/GID support"
+        )
+
+    uid = os.getuid()
+    gid = os.getgid()
     mount = f"{working_dir.resolve()}:/workspace:rw"
+
     return [
         "docker",
         "run",
@@ -75,6 +98,8 @@ def build_docker_command(
         "ALL",
         "--security-opt",
         "no-new-privileges:true",
+        "--user",
+        f"{uid}:{gid}",
         "--pids-limit",
         str(validated["pids_limit"]),
         "--tmpfs",
@@ -90,14 +115,24 @@ def build_docker_command(
 
 def docker_engine_metadata() -> dict[str, Any]:
     try:
-        cp = subprocess.run(
+        completed = subprocess.run(
             ["docker", "version", "--format", "{{.Server.Version}}"],
             capture_output=True,
             text=True,
             check=True,
             timeout=10,
         )
-        version = cp.stdout.strip() or None
-        return {"engine": "docker", "server_version": version}
+        version = completed.stdout.strip() or None
+        return {
+            "engine": "docker",
+            "server_version": version,
+            "host_uid": os.getuid() if hasattr(os, "getuid") else None,
+            "host_gid": os.getgid() if hasattr(os, "getgid") else None,
+        }
     except (OSError, subprocess.SubprocessError):
-        return {"engine": "docker", "server_version": None}
+        return {
+            "engine": "docker",
+            "server_version": None,
+            "host_uid": os.getuid() if hasattr(os, "getuid") else None,
+            "host_gid": os.getgid() if hasattr(os, "getgid") else None,
+        }
