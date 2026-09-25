@@ -1,0 +1,37 @@
+apiVersion: reprocert.dev/v1alpha1
+kind: ReproducibilityClaim
+metadata:
+  id: pytest-django-queries-example-consumer
+  title: pytest-django-queries example emits passing tests and a query-performance report
+spec:
+  command:
+    - uv
+    - run
+    - pytest
+    - --junitxml
+    - reprocert-junit.xml
+  accepted_exit_codes: [0, 1]
+  evidence:
+    - .pytest-queries
+    - reprocert-junit.xml
+  checks:
+    - id: pytest-failures
+      source:
+        type: junit
+        path: reprocert-junit.xml
+        metric: failures
+      op: eq
+      expected: 0
+    - id: pytest-errors
+      source:
+        type: junit
+        path: reprocert-junit.xml
+        metric: errors
+      op: eq
+      expected: 0
+    - id: query-performance-report-produced
+      source:
+        type: file_size
+        path: .pytest-queries
+      op: gt
+      expected: 2
