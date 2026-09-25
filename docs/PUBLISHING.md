@@ -18,9 +18,11 @@ The release workflow uses PyPI Trusted Publishing through GitHub OIDC. It does n
 
 The publishing job is isolated behind the GitHub environment named pypi and runs only when a GitHub Release is published.
 
-## One-time PyPI configuration
+## Trusted Publisher configuration
 
-Configure a PyPI Trusted Publisher with:
+Trusted Publishing is configured and the first PyPI publication has completed successfully.
+
+Current publisher identity:
 
 - PyPI project: aetherx-reprocert
 - GitHub owner: AETHERXGLOBAL
@@ -28,9 +30,7 @@ Configure a PyPI Trusted Publisher with:
 - Workflow: release.yml
 - Environment: pypi
 
-Also create the GitHub environment named pypi. A manual approval rule is recommended.
-
-A pending publisher does not reserve the package name until the first successful publication.
+The release workflow uses GitHub OIDC and does not require a long-lived PyPI API token.
 
 ## Release identity
 
@@ -50,3 +50,12 @@ The branch v0.2 is the stable public v0.2 action/install channel. It should move
 ~~~bash
 python -m pip install "git+https://github.com/AETHERXGLOBAL/reprocert.git@v0.2"
 ~~~
+
+## First published release
+
+The first PyPI release was published as:
+
+- package version: `0.2.2a1`
+- GitHub release tag: `v0.2.2a1`
+- channel: public alpha / pre-release
+

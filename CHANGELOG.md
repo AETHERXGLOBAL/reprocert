@@ -4,7 +4,7 @@ All notable public project changes are recorded here.
 
 The project is pre-1.0; interfaces may evolve while the public alpha is hardened.
 
-## Unreleased — v0.2.2 self-service
+## 0.2.2a1 — Self-service public alpha
 
 ### Added
 
@@ -20,7 +20,7 @@ The project is pre-1.0; interfaces may evolve while the public alpha is hardened
 
 ### Distribution
 
-The public GitHub v0.2 channel provides self-service installation independently of PyPI. PyPI publication remains gated on one-time Trusted Publisher account configuration.
+Published to PyPI as `aetherx-reprocert==0.2.2a1` through GitHub OIDC / PyPI Trusted Publishing. The public GitHub `v0.2` channel remains available as an alternate installation and GitHub Action channel.
 
 ## Unreleased — v0.2.1 adoption layer
 

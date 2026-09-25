@@ -4,16 +4,16 @@ ReproCert is designed to work without an AETHER X account, API key, hosted servi
 
 ## 1. Install
 
-Until the first PyPI publication is completed, install the stable v0.2 channel directly from the public GitHub repository:
-
-~~~bash
-python -m pip install "git+https://github.com/AETHERXGLOBAL/reprocert.git@v0.2"
-~~~
-
-After PyPI publishing is enabled:
+Install from PyPI:
 
 ~~~bash
 python -m pip install aetherx-reprocert
+~~~
+
+Alternative stable GitHub channel:
+
+~~~bash
+python -m pip install "git+https://github.com/AETHERXGLOBAL/reprocert.git@v0.2"
 ~~~
 
 ## 2. Initialize your project
