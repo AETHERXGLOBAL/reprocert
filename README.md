@@ -78,25 +78,41 @@ You do **not** need to redesign your project around ReproCert. The preferred fir
 
 You can also read the public adopter call in [Issue #7](https://github.com/AETHERXGLOBAL/reprocert/issues/7).
 
-## Quickstart
+## Quickstart — self-service
 
-Requires Python 3.11+.
+No AETHER X account, API key, hosted service, or approval is required.
+
+Until the first PyPI publication is completed, install the stable v0.2 channel directly from GitHub:
 
 ```bash
-git clone https://github.com/AETHERXGLOBAL/reprocert.git
-cd reprocert
-python -m pip install -e .
-cd examples/basic
-reprocert run claim.yml --output certificate.json
-reprocert verify certificate.json --claim claim.yml --evidence-root .
-reprocert inspect certificate.json
+python -m pip install "git+https://github.com/AETHERXGLOBAL/reprocert.git@v0.2"
 ```
 
-Expected verdict:
+Initialize a pytest project and generate a GitHub Actions workflow:
+
+```bash
+reprocert init pytest --github-actions
+reprocert doctor
+reprocert run reprocert.yml -o reprocert-certificate.json
+reprocert verify reprocert-certificate.json --claim reprocert.yml --evidence-root .
+```
+
+For other workflows:
+
+```bash
+reprocert init command --github-actions
+reprocert init benchmark --github-actions
+```
+
+Or run `reprocert init --github-actions` and let ReproCert conservatively detect pytest.
+
+Expected result:
 
 ```text
 ReproCert verdict: PASS
 ```
+
+See the [5-Minute Start](docs/QUICKSTART_5_MIN.md) and [Troubleshooting](docs/TROUBLESHOOTING.md).
 
 ## Example claim
 
@@ -145,7 +161,7 @@ The distinction matters: a crashed benchmark is not automatically evidence that 
 Use ReproCert directly in another repository:
 
 ```yaml
-- uses: AETHERXGLOBAL/reprocert@main
+- uses: AETHERXGLOBAL/reprocert@v0.2
   id: reprocert
   with:
     claim: path/to/claim.yml
@@ -252,7 +268,10 @@ A certificate self-digest is a stable content identifier. It is **not** a digita
 - [Pytest-native adapter](docs/PYTEST.md)
 - [Container profile](docs/CONTAINER_PROFILE.md)
 - [Policy layer](docs/POLICY.md)
+- [5-minute start](docs/QUICKSTART_5_MIN.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Integration guide](docs/INTEGRATION_GUIDE.md)
+- [Publishing](docs/PUBLISHING.md)
 - [Adoption evidence](docs/ADOPTION.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Roadmap](ROADMAP.md)
@@ -285,7 +304,10 @@ Included today:
 - adversarial path-boundary tests;
 - general producer-provenance attestation plus a custom ReproCert predicate;
 - privacy-minimized predicate generation;
-- richer JSON output for automation.
+- richer JSON output for automation;
+- self-service project scaffolding with `reprocert init`;
+- environment/readiness checks with `reprocert doctor`;
+- generated GitHub Actions workflow on request.
 
 Not included today:
 
@@ -308,7 +330,7 @@ See [Adoption Evidence](docs/ADOPTION.md).
 
 ## Project status
 
-**Public Alpha — v0.2.1 adoption line (`0.2.1a1`)**
+**Public Alpha — v0.2.2 self-service line (`0.2.2a1`)**
 
 ReproCert is suitable for evaluation and contribution. Interfaces may still change before a stable v1.0 release.
 
