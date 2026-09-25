@@ -35,6 +35,7 @@ The current Docker profile requires:
 - read-only container root filesystem;
 - all Linux capabilities dropped;
 - `no-new-privileges`;
+- execution as the calling host's numeric UID/GID rather than container root;
 - bounded PID count;
 - a small `/tmp` tmpfs;
 - only the claim working directory mounted writable at `/workspace`.
