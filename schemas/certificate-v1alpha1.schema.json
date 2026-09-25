@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reprocert.dev/schema/certificate-v1alpha1.json",
+  "title": "ReproCert Certificate v1alpha1",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "claim", "run", "environment", "checks", "evidence", "verdict", "integrity"],
+  "properties": {
+    "apiVersion": {"const": "reprocert.dev/certificate/v1alpha1"},
+    "kind": {"const": "ReproCertCertificate"},
+    "verdict": {"enum": ["PASS", "FAIL", "INCONCLUSIVE", "ERROR"]},
+    "integrity": {"type":"object","required":["algorithm","canonicalization","certificate_sha256"],"properties":{"algorithm":{"const":"sha256"},"canonicalization":{"const":"JSON_SORTED_KEYS_UTF8_V1"},"certificate_sha256":{"type":"string","pattern":"^[a-f0-9]{64}$"}}}
+  },
+  "additionalProperties": true
+}

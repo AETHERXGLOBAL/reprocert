@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reprocert.dev/schema/claim-v1alpha1.json",
+  "title": "ReproCert ReproducibilityClaim v1alpha1",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": {"const": "reprocert.dev/v1alpha1"},
+    "kind": {"const": "ReproducibilityClaim"},
+    "metadata": {"type":"object","required":["id"],"properties":{"id":{"type":"string","minLength":1},"title":{"type":"string"}},"additionalProperties":true},
+    "spec": {"type":"object","required":["command","checks"],"properties":{"command":{"type":"array","minItems":1,"items":{"type":"string","minLength":1}},"working_directory":{"type":"string","default":"."},"timeout_seconds":{"type":"integer","minimum":1,"maximum":86400,"default":300},"expected_exit_code":{"type":"integer","default":0},"evidence":{"type":"array","items":{"type":"string"},"default":[]},"checks":{"type":"array","minItems":1,"items":{"$ref":"#/$defs/check"}}},"additionalProperties":false}
+  },
+  "$defs": {"check":{"type":"object","required":["id","source","op","expected"],"properties":{"id":{"type":"string","minLength":1},"source":{"type":"object","required":["type"],"properties":{"type":{"enum":["json","text","stdout","stderr","exit_code","file_sha256","file_size"]},"path":{"type":"string"},"pointer":{"type":"string"}},"additionalProperties":false},"op":{"enum":["eq","ne","lt","le","gt","ge","approx","contains"]},"expected":{},"abs_tolerance":{"type":"number","minimum":0}},"additionalProperties":false}},
+  "additionalProperties": false
+}

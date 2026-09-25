@@ -1,0 +1,30 @@
+apiVersion: reprocert.dev/v1alpha1
+kind: ReproducibilityClaim
+metadata:
+  id: example-deterministic-computation
+  title: Deterministic computation produces the expected result
+spec:
+  command: [python, produce.py]
+  timeout_seconds: 30
+  evidence:
+    - result.json
+  checks:
+    - id: record-count
+      source:
+        type: json
+        path: result.json
+        pointer: /records_processed
+      op: eq
+      expected: 5
+    - id: sum
+      source:
+        type: json
+        path: result.json
+        pointer: /sum
+      op: eq
+      expected: 131
+    - id: stdout-has-result
+      source:
+        type: stdout
+      op: contains
+      expected: '"sum": 131'

@@ -1,0 +1,47 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aetherx-reprocert"
+version = "0.1.0a1"
+description = "Claim-to-evidence reproducibility certificates for software, AI and research workflows."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{name = "AETHER X GLOBAL"}]
+keywords = ["reproducibility", "ci", "provenance", "evidence", "verification", "attestation"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = ["PyYAML>=6.0.2,<7"]
+
+[project.urls]
+Homepage = "https://github.com/AETHERXGLOBAL/reprocert"
+Documentation = "https://github.com/AETHERXGLOBAL/reprocert/tree/main/docs"
+Issues = "https://github.com/AETHERXGLOBAL/reprocert/issues"
+Source = "https://github.com/AETHERXGLOBAL/reprocert"
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3,<9",
+  "build>=1.2,<2",
+]
+
+[project.scripts]
+reprocert = "reprocert.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/reprocert"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
