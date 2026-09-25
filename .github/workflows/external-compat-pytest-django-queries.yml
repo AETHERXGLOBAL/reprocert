@@ -1,0 +1,90 @@
+name: External Compatibility — pytest-django-queries
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/external-compat-pytest-django-queries.yml'
+      - 'examples/external-compatibility/pytest-django-queries/reprocert.yml'
+      - 'docs/EXTERNAL_COMPATIBILITY.md'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/external-compat-pytest-django-queries.yml'
+      - 'examples/external-compatibility/pytest-django-queries/reprocert.yml'
+      - 'docs/EXTERNAL_COMPATIBILITY.md'
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compatibility:
+    name: Pinned external consumer proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout ReproCert integration fixture
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          path: reprocert-source
+          persist-credentials: false
+
+      - name: Checkout pinned pytest-django-queries
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: NyanKiyoshi/pytest-django-queries
+          ref: d9ef71f281db2498c614986c5dbacd2592923f54
+          path: target
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: '3.13'
+
+      - name: Install public tools
+        run: |
+          python -m pip install --no-cache-dir uv==0.10.7 aetherx-reprocert
+          reprocert --version
+          uv --version
+
+      - name: Reproduce upstream dependency setup
+        working-directory: target
+        run: |
+          uv sync --locked --inexact --group test
+          uv pip install "django~=5.2"
+          cd example
+          uv pip install "django~=5.2"
+          uv sync --locked --inexact --group dev
+
+      - name: Materialize ReproCert claim beside the external example
+        run: |
+          cp \
+            reprocert-source/examples/external-compatibility/pytest-django-queries/reprocert.yml \
+            target/example/reprocert.yml
+
+      - name: Run and verify external compatibility claim
+        run: |
+          reprocert run \
+            target/example/reprocert.yml \
+            --output target/example/reprocert-certificate.json
+          reprocert verify \
+            target/example/reprocert-certificate.json \
+            --claim target/example/reprocert.yml \
+            --evidence-root target/example
+          reprocert inspect target/example/reprocert-certificate.json --json
+
+      - name: Upload compatibility evidence
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        with:
+          name: pytest-django-queries-reprocert-compatibility
+          path: |
+            target/example/reprocert.yml
+            target/example/reprocert-certificate.json
+            target/example/reprocert-junit.xml
+            target/example/.pytest-queries
+          if-no-files-found: error
+          retention-days: 14
