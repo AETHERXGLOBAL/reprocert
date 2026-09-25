@@ -68,7 +68,7 @@ def run_doctor(
     resolved_claim = (
         Path(claim_path)
         if claim_path is not None
-        else project_root / ".reprocert" / "claim.yml"
+        else project_root / "reprocert.yml"
     )
     if not resolved_claim.is_absolute():
         resolved_claim = project_root / resolved_claim
