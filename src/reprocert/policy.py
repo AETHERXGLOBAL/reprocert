@@ -9,6 +9,7 @@ from typing import Any
 import yaml
 
 from .util import canonical_json_bytes, sha256_bytes
+from .verification import verify_certificate
 
 POLICY_API_VERSION = "reprocert.dev/policy/v1alpha1"
 POLICY_KIND = "ReproCertPolicy"
@@ -44,7 +45,11 @@ def load_policy(path: str | Path) -> Policy:
         raise PolicyError(f"Cannot read policy file: {exc}") from exc
 
     try:
-        raw = json.loads(text) if policy_path.suffix.lower() == ".json" else yaml.safe_load(text)
+        raw = (
+            json.loads(text)
+            if policy_path.suffix.lower() == ".json"
+            else yaml.safe_load(text)
+        )
     except (json.JSONDecodeError, yaml.YAMLError) as exc:
         raise PolicyError(f"Invalid policy syntax: {exc}") from exc
 
@@ -71,9 +76,14 @@ def validate_policy(raw: dict[str, Any]) -> None:
     if (
         not isinstance(allowed, list)
         or not allowed
-        or any(v not in {"PASS", "FAIL", "INCONCLUSIVE", "ERROR"} for v in allowed)
+        or any(
+            verdict not in {"PASS", "FAIL", "INCONCLUSIVE", "ERROR"}
+            for verdict in allowed
+        )
     ):
-        raise PolicyError("spec.allowed_verdicts must be a non-empty verdict list")
+        raise PolicyError(
+            "spec.allowed_verdicts must be a non-empty verdict list"
+        )
 
     for key in ("require_ci", "require_git_clean", "require_container"):
         if key in spec and not isinstance(spec[key], bool):
@@ -91,7 +101,9 @@ def validate_policy(raw: dict[str, Any]) -> None:
     if not isinstance(required, list) or any(
         not isinstance(item, str) or not item for item in required
     ):
-        raise PolicyError("spec.required_check_ids must be an array of strings")
+        raise PolicyError(
+            "spec.required_check_ids must be an array of strings"
+        )
 
 
 def evaluate_policy(
@@ -100,6 +112,15 @@ def evaluate_policy(
 ) -> dict[str, Any]:
     rules: list[dict[str, Any]] = []
     spec = policy.spec
+
+    verification = verify_certificate(certificate)
+    _rule(
+        rules,
+        "certificate_integrity",
+        verification["status"] == "PASS",
+        "PASS",
+        verification["status"],
+    )
 
     allowed = spec.get("allowed_verdicts", ["PASS"])
     _rule(
@@ -110,29 +131,49 @@ def evaluate_policy(
         certificate.get("verdict"),
     )
 
-    if "require_ci" in spec:
+    if spec.get("require_ci") is True:
         observed = bool(
             certificate.get("environment", {})
             .get("ci", {})
             .get("github_actions")
         )
-        _rule(rules, "require_ci", observed is spec["require_ci"], spec["require_ci"], observed)
+        _rule(rules, "require_ci", observed, True, observed)
 
-    if "require_git_clean" in spec:
-        observed = certificate.get("environment", {}).get("git", {}).get("dirty")
-        expected = False if spec["require_git_clean"] else observed
-        passed = observed is False if spec["require_git_clean"] else True
-        _rule(rules, "require_git_clean", passed, expected, observed)
+    if spec.get("require_git_clean") is True:
+        observed = (
+            certificate.get("environment", {})
+            .get("git", {})
+            .get("dirty")
+        )
+        _rule(
+            rules,
+            "require_git_clean",
+            observed is False,
+            False,
+            observed,
+        )
 
     if "min_evidence_files" in spec:
         observed = len(certificate.get("evidence", []))
         expected = spec["min_evidence_files"]
-        _rule(rules, "min_evidence_files", observed >= expected, expected, observed)
+        _rule(
+            rules,
+            "min_evidence_files",
+            observed >= expected,
+            expected,
+            observed,
+        )
 
     if "max_diagnostics" in spec:
         observed = len(certificate.get("diagnostics", []))
         expected = spec["max_diagnostics"]
-        _rule(rules, "max_diagnostics", observed <= expected, expected, observed)
+        _rule(
+            rules,
+            "max_diagnostics",
+            observed <= expected,
+            expected,
+            observed,
+        )
 
     required_ids = spec.get("required_check_ids", [])
     if required_ids:
@@ -150,17 +191,24 @@ def evaluate_policy(
             sorted(observed_ids),
         )
 
-    if "require_container" in spec:
-        observed = isinstance(certificate.get("run", {}).get("container"), dict)
+    if spec.get("require_container") is True:
+        observed = isinstance(
+            certificate.get("run", {}).get("container"),
+            dict,
+        )
         _rule(
             rules,
             "require_container",
-            observed is spec["require_container"],
-            spec["require_container"],
+            observed,
+            True,
             observed,
         )
 
-    status = "PASS" if all(item["status"] == "PASS" for item in rules) else "FAIL"
+    status = (
+        "PASS"
+        if all(rule["status"] == "PASS" for rule in rules)
+        else "FAIL"
+    )
     result: dict[str, Any] = {
         "apiVersion": "reprocert.dev/policy-result/v1alpha1",
         "kind": "ReproCertPolicyResult",
@@ -173,15 +221,18 @@ def evaluate_policy(
             "sha256": policy.digest,
         },
         "certificate": {
-            "sha256": certificate.get("integrity", {}).get("certificate_sha256"),
+            "sha256": certificate.get("integrity", {}).get(
+                "certificate_sha256"
+            ),
             "verdict": certificate.get("verdict"),
         },
         "rules": rules,
         "status": status,
         "trustBoundary": (
-            "Policy evaluation is an additional acceptance layer. It does not "
-            "rewrite the underlying ReproCert verdict or establish producer "
-            "authenticity, evidence-source truth, or scientific validity."
+            "Policy evaluation is an additional acceptance layer. It does "
+            "not rewrite the underlying ReproCert verdict or establish "
+            "producer authenticity, evidence-source truth, or scientific "
+            "validity."
         ),
     }
     result["integrity"] = {
