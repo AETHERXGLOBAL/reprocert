@@ -94,7 +94,10 @@ def test_container_command_is_hardened(tmp_path: Path) -> None:
     assert "--read-only" in command
     assert "--cap-drop ALL" in joined
     assert "no-new-privileges:true" in command
-    assert f"@sha256:{digest}" in command
+    assert any(
+        item.endswith(f"@sha256:{digest}")
+        for item in command
+    )
 
 
 def test_policy_is_separate_from_certificate_verdict(tmp_path: Path) -> None:
