@@ -15,9 +15,17 @@ class InitResult:
 
 
 def detect_profile(target: Path) -> str:
-    pytest_markers = ("pytest.ini", "conftest.py", "pyproject.toml", "setup.cfg", "tox.ini")
-    if any((target / marker).exists() for marker in pytest_markers):
+    if (target / "pytest.ini").exists() or (target / "conftest.py").exists():
         return "pytest"
+
+    for name in ("pyproject.toml", "setup.cfg", "tox.ini"):
+        path = target / name
+        if path.is_file():
+            try:
+                if "pytest" in path.read_text(encoding="utf-8").lower():
+                    return "pytest"
+            except OSError:
+                pass
     return "command"
 
 
@@ -37,7 +45,7 @@ def initialize_project(
         raise InitError(f"Unsupported init profile: {selected}")
 
     files: dict[Path, str] = {
-        root / ".reprocert" / "claim.yml": _claim_template(selected),
+        root / "reprocert.yml": _claim_template(selected),
         root / ".reprocert" / "README.md": _local_readme(selected),
     }
     if github_actions:
@@ -74,22 +82,22 @@ spec:
     - pytest
     - -q
     - --junitxml
-    - .reprocert/junit.xml
+    - reprocert-junit.xml
   accepted_exit_codes: [0, 1]
   evidence:
-    - .reprocert/junit.xml
+    - reprocert-junit.xml
   checks:
     - id: pytest-failures
       source:
         type: junit
-        path: .reprocert/junit.xml
+        path: reprocert-junit.xml
         metric: failures
       op: eq
       expected: 0
     - id: pytest-errors
       source:
         type: junit
-        path: .reprocert/junit.xml
+        path: reprocert-junit.xml
         metric: errors
       op: eq
       expected: 0
@@ -144,10 +152,10 @@ Profile: {profile}
 Run locally:
 
     reprocert doctor
-    reprocert run .reprocert/claim.yml -o reprocert-certificate.json
-    reprocert verify reprocert-certificate.json --claim .reprocert/claim.yml --evidence-root .
+    reprocert run reprocert.yml -o reprocert-certificate.json
+    reprocert verify reprocert-certificate.json --claim reprocert.yml --evidence-root .
 
-Edit .reprocert/claim.yml so the command and evidence describe your real project.
+Edit reprocert.yml so the command and evidence describe your real project.
 ReproCert is a verification layer; it does not replace your existing test,
 benchmark, build, or research workflow.
 
@@ -186,7 +194,7 @@ jobs:
       - name: Run ReproCert
         uses: AETHERXGLOBAL/reprocert@v0.2
         with:
-          claim: .reprocert/claim.yml
+          claim: reprocert.yml
           certificate: reprocert-certificate.json
 
       - name: Upload certificate
