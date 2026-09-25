@@ -1,0 +1,78 @@
+name: Adoption / Integration Help
+description: Get help adding ReproCert to a real repository or CI workflow.
+title: "[Adoption] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ReproCert can be added as a small evidence layer on top of an existing test, benchmark, build, or research workflow. Keep this issue non-sensitive: do not include credentials, private source code, customer data, or confidential artifacts.
+
+  - type: input
+    id: repository
+    attributes:
+      label: Repository URL
+      description: Public repository URL if available. For private projects, describe the stack without sharing confidential details.
+      placeholder: https://github.com/owner/repository
+    validations:
+      required: true
+
+  - type: textarea
+    id: claim
+    attributes:
+      label: What claim do you want to verify?
+      description: State one concrete technical claim.
+      placeholder: "Example: the benchmark median stays below 250 ms, or all pytest checks complete with zero failures."
+    validations:
+      required: true
+
+  - type: textarea
+    id: current_workflow
+    attributes:
+      label: Current command or CI workflow
+      description: Show the existing command or a small non-sensitive workflow excerpt.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence already produced
+      description: Examples include JUnit XML, benchmark JSON, build artifacts, hashes, or logs.
+      placeholder: junit.xml, benchmark.json, dist/package.whl
+    validations:
+      required: false
+
+  - type: dropdown
+    id: integration
+    attributes:
+      label: Preferred integration
+      options:
+        - GitHub Action
+        - ReproCert CLI
+        - Pytest-native adapter
+        - JUnit integration
+        - Multi-claim suite
+        - Policy gate
+        - Signed attestation
+        - Not sure — recommend the smallest useful integration
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints
+      description: Note OS, Python version, CI provider, security restrictions, or "no product-code changes" requirements.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Public issue boundaries
+      options:
+        - label: I confirm this issue contains no credentials, private customer data, confidential source code, or sensitive exploit details.
+          required: true
+        - label: I understand a ReproCert PASS result does not by itself establish security certification, scientific truth, or benchmark fairness.
+          required: true

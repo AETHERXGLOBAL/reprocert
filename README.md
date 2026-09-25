@@ -57,6 +57,27 @@ REPRODUCIBILITY CERTIFICATE
 
 It is designed to complement — not replace — test frameworks, benchmark harnesses, SLSA, in-toto, Sigstore, GitHub Artifact Attestations and experiment-tracking systems.
 
+## Looking for early adopters
+
+Have a real CI, benchmark, testing, AI, or research workflow where a technical claim should be backed by portable evidence?
+
+**ReproCert is actively looking for early adopters.**
+
+Good first integrations include:
+
+- pytest or JUnit quality gates;
+- benchmark thresholds;
+- reproducible build or artifact checks;
+- data-quality assertions;
+- CI policies that require explicit evidence;
+- workflows that would benefit from signed provenance.
+
+You do **not** need to redesign your project around ReproCert. The preferred first integration is small, isolated, and reversible.
+
+**[Open an Adoption / Integration request →](https://github.com/AETHERXGLOBAL/reprocert/issues/new?template=adoption.yml)**
+
+You can also read the public adopter call in [Issue #7](https://github.com/AETHERXGLOBAL/reprocert/issues/7).
+
 ## Quickstart
 
 Requires Python 3.11+.
