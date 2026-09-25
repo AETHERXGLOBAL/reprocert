@@ -4,6 +4,24 @@ All notable public project changes are recorded here.
 
 The project is pre-1.0; interfaces may evolve while the public alpha is hardened.
 
+## Unreleased — v0.2.2 self-service
+
+### Added
+
+- `reprocert init` for pytest, command and benchmark scaffolding;
+- conservative pytest auto-detection;
+- optional generated GitHub Actions workflow using the stable v0.2 channel;
+- overwrite protection unless `--force` is explicit;
+- `reprocert doctor` for project/readiness diagnostics;
+- five-minute self-service onboarding guide;
+- troubleshooting guide;
+- PyPI Trusted Publishing release workflow using GitHub OIDC;
+- release tag/package-version identity check.
+
+### Distribution
+
+The public GitHub v0.2 channel provides self-service installation independently of PyPI. PyPI publication remains gated on one-time Trusted Publisher account configuration.
+
 ## Unreleased — v0.2.1 adoption layer
 
 ### Added
