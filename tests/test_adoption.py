@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -79,6 +80,10 @@ def test_mutable_container_tag_is_rejected() -> None:
         validate_container_profile({"image": "python:3.13"})
 
 
+@pytest.mark.skipif(
+    not hasattr(os, "getuid") or not hasattr(os, "getgid"),
+    reason="hardened container command currently requires a POSIX host",
+)
 def test_container_command_is_hardened(tmp_path: Path) -> None:
     digest = "a" * 64
     profile = validate_container_profile(
