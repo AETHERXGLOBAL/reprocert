@@ -49,7 +49,7 @@ def initialize_project(
         root / ".reprocert" / "README.md": _local_readme(selected),
     }
     if github_actions:
-        files[root / ".github" / "workflows" / "reprocert.yml"] = _workflow_template()
+        files[root / ".github" / "workflows" / "reprocert.yml"] = _workflow_template(selected)
 
     conflicts = [path for path in files if path.exists() and not force]
     if conflicts:
@@ -164,7 +164,13 @@ https://github.com/AETHERXGLOBAL/reprocert
 """
 
 
-def _workflow_template() -> str:
+def _workflow_template(profile: str) -> str:
+    install_step = ""
+    if profile == "pytest":
+        install_step = """
+      - name: Install project and test dependencies
+        run: python -m pip install -e . pytest
+"""
     return """name: ReproCert
 
 on:
@@ -188,9 +194,7 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Install project and test dependencies
-        run: python -m pip install -e . pytest
-
+""" + install_step + """
       - name: Run ReproCert
         uses: AETHERXGLOBAL/reprocert@v0.2
         with:
