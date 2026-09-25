@@ -32,7 +32,7 @@ Source = "https://github.com/AETHERXGLOBAL/reprocert"
 
 [project.optional-dependencies]
 dev = [
-  "pytest>=8.3,<9",
+  "pytest>=8.3,<10",
   "build>=1.2,<2",
 ]
 
