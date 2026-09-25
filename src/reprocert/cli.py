@@ -9,6 +9,8 @@ from typing import Any
 from . import __version__
 from .attestation import PREDICATE_TYPE, predicate_from_certificate
 from .claim import ClaimError, load_claim
+from .policy import PolicyError, evaluate_policy, load_policy
+from .pytest_adapter import run_pytest_adapter
 from .runner import EvidenceResolutionError, run_claim
 from .suite import SuiteError, load_suite, run_suite
 from .verification import load_certificate, verify_certificate
@@ -36,23 +38,29 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("run", help="Run one claim and emit a certificate")
     p.add_argument("claim")
-    p.add_argument(
-        "--output",
-        "-o",
-        default="reprocert-certificate.json",
-    )
+    p.add_argument("--output", "-o", default="reprocert-certificate.json")
     p.add_argument("--json", action="store_true")
+
+    p = sub.add_parser(
+        "pytest",
+        help="Run pytest with ReproCert-native failure semantics",
+    )
+    p.add_argument("--workdir", default=".")
+    p.add_argument("--output", "-o", default="reprocert-pytest-certificate.json")
+    p.add_argument("--junit", default=".reprocert-pytest-junit.xml")
+    p.add_argument("--json", action="store_true")
+    p.add_argument(
+        "pytest_args",
+        nargs=argparse.REMAINDER,
+        help="Arguments passed to pytest; prefix with -- to separate them",
+    )
 
     p = sub.add_parser(
         "suite",
         help="Run a suite of claims and emit an aggregate report",
     )
     p.add_argument("suite")
-    p.add_argument(
-        "--output",
-        "-o",
-        default="reprocert-suite-report.json",
-    )
+    p.add_argument("--output", "-o", default="reprocert-suite-report.json")
     p.add_argument(
         "--certificate-dir",
         default=".reprocert/certificates",
@@ -69,28 +77,27 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true")
 
     p = sub.add_parser(
+        "policy",
+        help="Evaluate a certificate against an explicit acceptance policy",
+    )
+    p.add_argument("certificate")
+    p.add_argument("policy")
+    p.add_argument("--output", "-o", default="reprocert-policy-result.json")
+    p.add_argument("--json", action="store_true")
+
+    p = sub.add_parser(
         "predicate",
         help="Create a privacy-minimized custom attestation predicate",
     )
     p.add_argument("certificate")
-    p.add_argument(
-        "--output",
-        "-o",
-        default="reprocert-predicate.json",
-    )
+    p.add_argument("--output", "-o", default="reprocert-predicate.json")
     p.add_argument("--json", action="store_true")
 
-    p = sub.add_parser(
-        "inspect",
-        help="Show a certificate summary",
-    )
+    p = sub.add_parser("inspect", help="Show a certificate summary")
     p.add_argument("certificate")
     p.add_argument("--json", action="store_true")
 
-    p = sub.add_parser(
-        "diff",
-        help="Compare two certificates",
-    )
+    p = sub.add_parser("diff", help="Compare two certificates")
     p.add_argument("left")
     p.add_argument("right")
     p.add_argument("--json", action="store_true")
@@ -103,10 +110,14 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "run":
             return _run(args)
+        if args.command == "pytest":
+            return _pytest(args)
         if args.command == "suite":
             return _suite(args)
         if args.command == "verify":
             return _verify(args)
+        if args.command == "policy":
+            return _policy(args)
         if args.command == "predicate":
             return _predicate(args)
         if args.command == "inspect":
@@ -116,6 +127,7 @@ def main(argv: list[str] | None = None) -> int:
     except (
         ClaimError,
         SuiteError,
+        PolicyError,
         EvidenceResolutionError,
         ValueError,
         OSError,
@@ -132,19 +144,30 @@ def _run(args: argparse.Namespace) -> int:
     output = Path(args.output)
     _write_json(output, certificate)
 
-    summary = {
-        "claim_id": certificate["metadata"]["claim_id"],
-        "verdict": certificate["verdict"],
-        "certificate": str(output),
-        "certificate_sha256": certificate["integrity"]["certificate_sha256"],
-    }
-    if args.json:
-        print(json.dumps(summary, sort_keys=True))
-    else:
-        print(f"ReproCert verdict: {certificate['verdict']}")
-        print(f"Certificate: {output}")
-        print(f"Digest: {certificate['integrity']['certificate_sha256']}")
+    summary = _certificate_summary(certificate, output)
+    _print_certificate_result(summary, args.json)
+    return EXIT_BY_VERDICT.get(certificate["verdict"], 2)
 
+
+def _pytest(args: argparse.Namespace) -> int:
+    pytest_args = list(args.pytest_args)
+    if pytest_args and pytest_args[0] == "--":
+        pytest_args = pytest_args[1:]
+
+    certificate, generated_claim = run_pytest_adapter(
+        working_directory=args.workdir,
+        pytest_args=pytest_args,
+        junit_path=args.junit,
+    )
+    output = Path(args.output)
+    _write_json(output, certificate)
+
+    summary = {
+        **_certificate_summary(certificate, output),
+        "adapter": "pytest-native",
+        "generated_claim": str(generated_claim),
+    }
+    _print_certificate_result(summary, args.json)
     return EXIT_BY_VERDICT.get(certificate["verdict"], 2)
 
 
@@ -199,6 +222,31 @@ def _verify(args: argparse.Namespace) -> int:
     return 0 if result["status"] == "PASS" else 1
 
 
+def _policy(args: argparse.Namespace) -> int:
+    certificate = load_certificate(args.certificate)
+    policy = load_policy(args.policy)
+    result = evaluate_policy(certificate, policy)
+    output = Path(args.output)
+    _write_json(output, result)
+
+    summary = {
+        "policy_id": result["metadata"]["policy_id"],
+        "status": result["status"],
+        "certificate_verdict": result["certificate"]["verdict"],
+        "result": str(output),
+        "result_sha256": result["integrity"]["result_sha256"],
+    }
+    if args.json:
+        print(json.dumps(summary, sort_keys=True))
+    else:
+        print(f"Policy evaluation: {result['status']}")
+        print(f"Certificate verdict: {result['certificate']['verdict']}")
+        for rule in result["rules"]:
+            print(f"- {rule['status']}: {rule['id']}")
+        print(f"Result: {output}")
+    return 0 if result["status"] == "PASS" else 1
+
+
 def _predicate(args: argparse.Namespace) -> int:
     certificate = load_certificate(args.certificate)
     predicate = predicate_from_certificate(certificate)
@@ -225,12 +273,14 @@ def _inspect(args: argparse.Namespace) -> int:
     payload = {
         "claim_id": certificate["metadata"].get("claim_id"),
         "title": certificate["metadata"].get("title"),
+        "adapter": certificate["metadata"].get("adapter"),
         "verdict": certificate.get("verdict"),
         "commit": certificate.get("environment", {})
         .get("git", {})
         .get("commit"),
         "duration_ms": certificate.get("run", {}).get("duration_ms"),
         "evidence_files": len(certificate.get("evidence", [])),
+        "container": certificate.get("run", {}).get("container"),
         "certificate_sha256": certificate.get("integrity", {}).get(
             "certificate_sha256"
         ),
@@ -249,9 +299,13 @@ def _inspect(args: argparse.Namespace) -> int:
     else:
         print(f"Claim: {payload['claim_id']} — {payload['title']}")
         print(f"Verdict: {payload['verdict']}")
+        if payload["adapter"]:
+            print(f"Adapter: {payload['adapter']}")
         print(f"Commit: {payload['commit']}")
         print(f"Duration: {payload['duration_ms']} ms")
         print(f"Evidence files: {payload['evidence_files']}")
+        if payload["container"]:
+            print(f"Container image: {payload['container'].get('image')}")
         for check in payload["checks"]:
             print(
                 f"- {check['status']}: {check['id']} "
@@ -279,6 +333,30 @@ def _diff(args: argparse.Namespace) -> int:
                 f"{item['right']!r}"
             )
     return 0
+
+
+def _certificate_summary(
+    certificate: dict[str, Any],
+    output: Path,
+) -> dict[str, Any]:
+    return {
+        "claim_id": certificate["metadata"]["claim_id"],
+        "verdict": certificate["verdict"],
+        "certificate": str(output),
+        "certificate_sha256": certificate["integrity"]["certificate_sha256"],
+    }
+
+
+def _print_certificate_result(
+    summary: dict[str, Any],
+    as_json: bool,
+) -> None:
+    if as_json:
+        print(json.dumps(summary, sort_keys=True))
+    else:
+        print(f"ReproCert verdict: {summary['verdict']}")
+        print(f"Certificate: {summary['certificate']}")
+        print(f"Digest: {summary['certificate_sha256']}")
 
 
 def _diff_payload(

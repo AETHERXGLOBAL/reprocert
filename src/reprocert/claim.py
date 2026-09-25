@@ -7,6 +7,7 @@ from typing import Any
 
 import yaml
 
+from .container import ContainerProfileError, validate_container_profile
 from .util import canonical_json_bytes, sha256_bytes
 
 CLAIM_API_VERSION = "reprocert.dev/v1alpha1"
@@ -76,18 +77,57 @@ def validate_claim(raw: dict[str, Any]) -> None:
         raise ClaimError("spec must be an object")
 
     command = spec.get("command")
-    if not isinstance(command, list) or not command or not all(isinstance(x, str) and x for x in command):
+    if not isinstance(command, list) or not command or not all(
+        isinstance(item, str) and item for item in command
+    ):
         raise ClaimError("spec.command must be a non-empty array of strings")
 
     timeout = spec.get("timeout_seconds", 300)
-    if not isinstance(timeout, int) or isinstance(timeout, bool) or timeout < 1 or timeout > 86400:
+    if (
+        not isinstance(timeout, int)
+        or isinstance(timeout, bool)
+        or timeout < 1
+        or timeout > 86400
+    ):
         raise ClaimError("spec.timeout_seconds must be an integer between 1 and 86400")
 
+    if "accepted_exit_codes" in spec and "expected_exit_code" in spec:
+        raise ClaimError(
+            "Use either spec.expected_exit_code or spec.accepted_exit_codes, not both"
+        )
+
+    if "accepted_exit_codes" in spec:
+        accepted = spec["accepted_exit_codes"]
+        if (
+            not isinstance(accepted, list)
+            or not accepted
+            or any(
+                not isinstance(code, int) or isinstance(code, bool)
+                for code in accepted
+            )
+            or len(set(accepted)) != len(accepted)
+        ):
+            raise ClaimError(
+                "spec.accepted_exit_codes must be a non-empty unique integer array"
+            )
+    else:
+        expected = spec.get("expected_exit_code", 0)
+        if not isinstance(expected, int) or isinstance(expected, bool):
+            raise ClaimError("spec.expected_exit_code must be an integer")
+
     evidence = spec.get("evidence", [])
-    if not isinstance(evidence, list) or not all(isinstance(x, str) and x for x in evidence):
+    if not isinstance(evidence, list) or not all(
+        isinstance(item, str) and item for item in evidence
+    ):
         raise ClaimError("spec.evidence must be an array of relative file paths")
     for rel in evidence:
         _validate_relative_path(rel, "evidence")
+
+    if "container" in spec:
+        try:
+            validate_container_profile(spec["container"])
+        except ContainerProfileError as exc:
+            raise ClaimError(str(exc)) from exc
 
     checks = spec.get("checks", [])
     if not isinstance(checks, list) or not checks:
@@ -120,7 +160,9 @@ def validate_claim(raw: dict[str, Any]) -> None:
             "file_size",
             "junit",
         }:
-            raise ClaimError(f"Check {check_id}: unsupported source type {source_type!r}")
+            raise ClaimError(
+                f"Check {check_id}: unsupported source type {source_type!r}"
+            )
 
         if source_type in {"json", "text", "file_sha256", "file_size", "junit"}:
             path = source.get("path")
@@ -135,7 +177,8 @@ def validate_claim(raw: dict[str, Any]) -> None:
             metric = source.get("metric")
             if metric not in JUNIT_METRICS:
                 raise ClaimError(
-                    f"Check {check_id}: source.metric must be one of {sorted(JUNIT_METRICS)}"
+                    f"Check {check_id}: source.metric must be one of "
+                    f"{sorted(JUNIT_METRICS)}"
                 )
 
         op = check.get("op")
@@ -145,14 +188,20 @@ def validate_claim(raw: dict[str, Any]) -> None:
             raise ClaimError(f"Check {check_id}: expected is required")
 
         if op == "approx":
-            tol = check.get("abs_tolerance")
-            if not isinstance(tol, (int, float)) or isinstance(tol, bool) or tol < 0:
+            tolerance = check.get("abs_tolerance")
+            if (
+                not isinstance(tolerance, (int, float))
+                or isinstance(tolerance, bool)
+                or tolerance < 0
+            ):
                 raise ClaimError(
                     f"Check {check_id}: abs_tolerance must be a non-negative number"
                 )
 
 
 def _validate_relative_path(value: str, label: str) -> None:
-    p = Path(value)
-    if p.is_absolute() or ".." in p.parts:
-        raise ClaimError(f"{label} path must stay inside the working directory: {value!r}")
+    path = Path(value)
+    if path.is_absolute() or ".." in path.parts:
+        raise ClaimError(
+            f"{label} path must stay inside the working directory: {value!r}"
+        )

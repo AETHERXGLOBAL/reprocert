@@ -33,6 +33,13 @@
           "default": 300
         },
         "expected_exit_code": {"type": "integer", "default": 0},
+        "accepted_exit_codes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "integer"}
+        },
+        "container": {"$ref": "#/$defs/container"},
         "evidence": {
           "type": "array",
           "items": {"type": "string"},
@@ -44,10 +51,36 @@
           "items": {"$ref": "#/$defs/check"}
         }
       },
+      "not": {
+        "required": ["expected_exit_code", "accepted_exit_codes"]
+      },
       "additionalProperties": false
     }
   },
   "$defs": {
+    "container": {
+      "type": "object",
+      "required": ["image"],
+      "properties": {
+        "engine": {"const": "docker", "default": "docker"},
+        "image": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._/:-]*@sha256:[a-f0-9]{64}$"
+        },
+        "network": {"const": "none", "default": "none"},
+        "read_only_root": {"const": true, "default": true},
+        "drop_capabilities": {"const": true, "default": true},
+        "no_new_privileges": {"const": true, "default": true},
+        "run_as_host_user": {"const": true, "default": true},
+        "pids_limit": {
+          "type": "integer",
+          "minimum": 16,
+          "maximum": 4096,
+          "default": 256
+        }
+      },
+      "additionalProperties": false
+    },
     "source": {
       "type": "object",
       "required": ["type"],

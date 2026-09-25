@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
+MAX_JUNIT_BYTES = 16 * 1024 * 1024
+
 
 class JUnitError(ValueError):
     pass
@@ -10,10 +12,18 @@ class JUnitError(ValueError):
 
 def read_junit_metrics(path: str | Path) -> dict[str, int | float]:
     report_path = Path(path)
+    size = report_path.stat().st_size
+    if size > MAX_JUNIT_BYTES:
+        raise JUnitError(
+            f"JUnit evidence exceeds {MAX_JUNIT_BYTES} bytes"
+        )
+
     data = report_path.read_bytes()
     upper = data.upper()
     if b"<!DOCTYPE" in upper or b"<!ENTITY" in upper:
-        raise JUnitError("DTD/entity declarations are not accepted in JUnit evidence")
+        raise JUnitError(
+            "DTD/entity declarations are not accepted in JUnit evidence"
+        )
 
     try:
         root = ET.fromstring(data)
@@ -24,9 +34,15 @@ def read_junit_metrics(path: str | Path) -> dict[str, int | float]:
     if root_name == "testsuite":
         suites = [root]
     elif root_name == "testsuites":
-        suites = [child for child in root if _local_name(child.tag) == "testsuite"]
+        suites = [
+            child
+            for child in root
+            if _local_name(child.tag) == "testsuite"
+        ]
     else:
-        raise JUnitError("JUnit root must be <testsuite> or <testsuites>")
+        raise JUnitError(
+            "JUnit root must be <testsuite> or <testsuites>"
+        )
 
     if not suites:
         raise JUnitError("JUnit document contains no test suites")
@@ -60,7 +76,9 @@ def read_junit_metrics(path: str | Path) -> dict[str, int | float]:
         totals["failures"] = int(totals["failures"]) + failures
         totals["errors"] = int(totals["errors"]) + errors
         totals["skipped"] = int(totals["skipped"]) + skipped
-        totals["time_seconds"] = float(totals["time_seconds"]) + time_seconds
+        totals["time_seconds"] = (
+            float(totals["time_seconds"]) + time_seconds
+        )
 
     passed = (
         int(totals["tests"])
@@ -69,7 +87,10 @@ def read_junit_metrics(path: str | Path) -> dict[str, int | float]:
         - int(totals["skipped"])
     )
     totals["passed"] = max(0, passed)
-    totals["time_seconds"] = round(float(totals["time_seconds"]), 6)
+    totals["time_seconds"] = round(
+        float(totals["time_seconds"]),
+        6,
+    )
     return totals
 
 
@@ -77,32 +98,57 @@ def _local_name(tag: str) -> str:
     return tag.rsplit("}", 1)[-1]
 
 
-def _int_attr_or_count(element: ET.Element, attr: str, descendant: str) -> int:
+def _int_attr_or_count(
+    element: ET.Element,
+    attr: str,
+    descendant: str,
+) -> int:
     raw = element.get(attr)
     if raw is not None:
         try:
             return int(raw)
         except ValueError as exc:
-            raise JUnitError(f"JUnit attribute {attr!r} must be an integer") from exc
+            raise JUnitError(
+                f"JUnit attribute {attr!r} must be an integer"
+            ) from exc
 
     if attr == "tests":
-        return sum(1 for child in element.iter() if _local_name(child.tag) == descendant)
+        return sum(
+            1
+            for child in element.iter()
+            if _local_name(child.tag) == descendant
+        )
 
     count = 0
-    for case in (child for child in element.iter() if _local_name(child.tag) == "testcase"):
-        if any(_local_name(child.tag) == descendant for child in case):
+    for case in (
+        child
+        for child in element.iter()
+        if _local_name(child.tag) == "testcase"
+    ):
+        if any(
+            _local_name(child.tag) == descendant
+            for child in case
+        ):
             count += 1
     return count
 
 
-def _float_attr(element: ET.Element, attr: str, default: float) -> float:
+def _float_attr(
+    element: ET.Element,
+    attr: str,
+    default: float,
+) -> float:
     raw = element.get(attr)
     if raw is None:
         return default
     try:
         value = float(raw)
     except ValueError as exc:
-        raise JUnitError(f"JUnit attribute {attr!r} must be numeric") from exc
+        raise JUnitError(
+            f"JUnit attribute {attr!r} must be numeric"
+        ) from exc
     if value < 0:
-        raise JUnitError(f"JUnit attribute {attr!r} cannot be negative")
+        raise JUnitError(
+            f"JUnit attribute {attr!r} cannot be negative"
+        )
     return value

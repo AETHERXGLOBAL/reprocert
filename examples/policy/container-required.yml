@@ -1,0 +1,12 @@
+apiVersion: reprocert.dev/policy/v1alpha1
+kind: ReproCertPolicy
+metadata:
+  id: container-required
+  title: Require a passing digest-pinned container execution
+spec:
+  allowed_verdicts: [PASS]
+  require_container: true
+  min_evidence_files: 1
+  max_diagnostics: 0
+  required_check_ids:
+    - container-result
