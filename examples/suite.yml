@@ -1,0 +1,9 @@
+apiVersion: reprocert.dev/suite/v1alpha1
+kind: ReproCertSuite
+metadata:
+  id: developer-quality-suite
+  title: Reference ReproCert multi-claim suite
+spec:
+  claims:
+    - basic/claim.yml
+    - junit/claim.yml
