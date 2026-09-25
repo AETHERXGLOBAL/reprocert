@@ -43,14 +43,28 @@ jobs:
         working-directory: examples/basic
         run: reprocert verify reprocert-certificate.json --claim claim.yml --evidence-root .
 
-      - name: Attest certificate producer provenance
+      - name: Build ReproCert custom predicate
+        working-directory: examples/basic
+        run: |
+          reprocert predicate reprocert-certificate.json             --output reprocert-predicate.json             --json
+
+      - name: Attest general producer provenance
         uses: actions/attest@v4
         with:
           subject-path: examples/basic/reprocert-certificate.json
 
-      - name: Upload certificate
+      - name: Attest ReproCert predicate
+        uses: actions/attest@v4
+        with:
+          subject-path: examples/basic/reprocert-certificate.json
+          predicate-type: https://raw.githubusercontent.com/AETHERXGLOBAL/reprocert/main/schemas/attestation-predicate-v1.schema.json
+          predicate-path: examples/basic/reprocert-predicate.json
+
+      - name: Upload certificate and predicate
         uses: actions/upload-artifact@v7
         with:
-          name: reprocert-reference-certificate
-          path: examples/basic/reprocert-certificate.json
+          name: reprocert-reference-evidence
+          path: |
+            examples/basic/reprocert-certificate.json
+            examples/basic/reprocert-predicate.json
           if-no-files-found: error

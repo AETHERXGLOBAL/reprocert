@@ -4,16 +4,24 @@ ReproCert's local verifier answers whether a certificate is internally consisten
 
 It deliberately does **not** treat a self-digest as producer authentication.
 
-## Reference workflow
+## Two attestation layers
 
-The repository's `Attested Demo` workflow:
+The repository's `Attested Demo` workflow produces two signed attestations for the same certificate:
 
-1. checks out the exact Git revision;
-2. installs ReproCert;
-3. runs the reference claim;
-4. verifies the resulting certificate against the local claim and evidence;
-5. creates a GitHub Artifact Attestation for the certificate;
-6. uploads the certificate as a workflow artifact.
+1. **General artifact provenance** — GitHub/Sigstore provenance describing where and how the certificate artifact was produced.
+2. **ReproCert custom predicate** — a privacy-minimized predicate containing claim identity, certificate identity, verdict, check statuses, evidence digests, selected CI identity, and ReproCert version.
+
+The custom predicate type is the versioned schema URI:
+
+`https://raw.githubusercontent.com/AETHERXGLOBAL/reprocert/main/schemas/attestation-predicate-v1.schema.json`
+
+## Generate a predicate locally
+
+```bash
+reprocert predicate certificate.json -o reprocert-predicate.json
+```
+
+The predicate intentionally omits command text and stdout/stderr excerpts. Those fields can contain sensitive or irrelevant operational content and are not needed to express the bounded ReproCert result.
 
 ## Separation of concerns
 
@@ -27,6 +35,4 @@ truth of the evidence source
 scientific validity of a claim
 ```
 
-A valid signed producer attestation strengthens provenance: it can establish where/how an artifact was produced under the attestation system's trust model.
-
-It does not establish that the benchmark design is unbiased, the measured environment is representative, the source data is physically truthful, or the software is secure.
+A valid signed producer attestation strengthens provenance. It does not establish benchmark fairness, security certification, physical truth, or scientific validity.

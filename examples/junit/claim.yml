@@ -1,0 +1,32 @@
+apiVersion: reprocert.dev/v1alpha1
+kind: ReproducibilityClaim
+metadata:
+  id: junit-quality-gate
+  title: JUnit report contains no failures or errors
+spec:
+  command: [python, make_report.py]
+  timeout_seconds: 30
+  evidence:
+    - junit.xml
+  checks:
+    - id: no-failures
+      source:
+        type: junit
+        path: junit.xml
+        metric: failures
+      op: eq
+      expected: 0
+    - id: no-errors
+      source:
+        type: junit
+        path: junit.xml
+        metric: errors
+      op: eq
+      expected: 0
+    - id: three-passed
+      source:
+        type: junit
+        path: junit.xml
+        metric: passed
+      op: eq
+      expected: 3

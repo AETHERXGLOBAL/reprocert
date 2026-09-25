@@ -102,7 +102,7 @@ spec:
 
 ### Supported observation sources
 
-`json` · `text` · `stdout` · `stderr` · `exit_code` · `file_sha256` · `file_size`
+`json` · `text` · `stdout` · `stderr` · `exit_code` · `file_sha256` · `file_size` · `junit`
 
 ### Supported comparators
 
@@ -130,10 +130,49 @@ Use ReproCert directly in another repository:
     claim: path/to/claim.yml
     certificate: reprocert-certificate.json
 
-- run: echo "Verdict: ${{ steps.reprocert.outputs.verdict }}"
+- run: |
+    echo "Verdict: ${{ steps.reprocert.outputs.verdict }}"
+    echo "Digest: ${{ steps.reprocert.outputs.certificate-digest }}"
 ```
 
 For untrusted pull requests, use least-privilege workflow permissions and never expose secrets to code you do not trust.
+
+## Multi-claim suites
+
+ReproCert v0.2 can execute several independent claims under one aggregate report while preserving a separate certificate for every member claim.
+
+```bash
+reprocert suite examples/suite.yml \
+  --output suite-report.json \
+  --certificate-dir .reprocert/certificates
+```
+
+A known false claim remains `FAIL`; it is not hidden by an unrelated execution error. See [Claim Suites](docs/SUITES.md).
+
+## JUnit integration
+
+Existing test systems can feed ReproCert without rewriting their test runners. Point a check at JUnit XML and select an aggregate metric:
+
+```yaml
+source:
+  type: junit
+  path: junit.xml
+  metric: failures
+op: eq
+expected: 0
+```
+
+Supported metrics are `tests`, `failures`, `errors`, `skipped`, `passed`, and `time_seconds`. See [JUnit Integration](docs/JUNIT.md).
+
+## Custom attestation predicate
+
+Generate a privacy-minimized predicate from a certificate:
+
+```bash
+reprocert predicate certificate.json -o reprocert-predicate.json
+```
+
+The reference workflow signs both general artifact provenance and the ReproCert-specific predicate with GitHub Artifact Attestations. The predicate deliberately excludes command text and stdout/stderr excerpts.
 
 ## Certificate verification
 
@@ -151,6 +190,9 @@ A certificate self-digest is a stable content identifier. It is **not** a digita
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Attestation model](docs/ATTESTATION.md)
+- [Claim suites](docs/SUITES.md)
+- [JUnit integration](docs/JUNIT.md)
+- [Integration guide](docs/INTEGRATION_GUIDE.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Roadmap](ROADMAP.md)
 - [Contributing](CONTRIBUTING.md)
@@ -166,7 +208,8 @@ Included today:
 - bounded argv execution with `shell=False`;
 - deterministic claim hashing;
 - JSON Pointer observations;
-- stdout/stderr/file observations;
+- stdout/stderr/file/JUnit observations;
+- multi-claim suites with aggregate reports;
 - SHA-256 evidence records;
 - non-secret environment capture;
 - canonical certificate digest;
@@ -176,7 +219,9 @@ Included today:
 - open JSON Schemas;
 - cross-platform CI;
 - adversarial path-boundary tests;
-- reference signed producer-attestation workflow.
+- general producer-provenance attestation plus a custom ReproCert predicate;
+- privacy-minimized predicate generation;
+- richer JSON output for automation.
 
 Not included today:
 
@@ -190,7 +235,7 @@ Not included today:
 
 ## Project status
 
-**Public Alpha — v0.1 line**
+**Public Alpha — v0.2 development line (`0.2.0a1`)**
 
 ReproCert is suitable for evaluation and contribution. Interfaces may still change before a stable v1.0 release.
 

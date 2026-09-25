@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/AETHERXGLOBAL/reprocert/main/schemas/attestation-predicate-v1.schema.json",
+  "title": "ReproCert Attestation Predicate v1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "predicateType",
+    "certificate",
+    "claim",
+    "result",
+    "evidence",
+    "producerContext",
+    "tool",
+    "trustBoundary"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "1"},
+    "predicateType": {
+      "const": "https://raw.githubusercontent.com/AETHERXGLOBAL/reprocert/main/schemas/attestation-predicate-v1.schema.json"
+    },
+    "certificate": {
+      "type": "object",
+      "required": ["apiVersion", "sha256"],
+      "properties": {
+        "apiVersion": {"type": ["string", "null"]},
+        "sha256": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "claim": {
+      "type": "object",
+      "required": ["id", "sha256"],
+      "properties": {
+        "id": {"type": ["string", "null"]},
+        "sha256": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "result": {
+      "type": "object",
+      "required": ["verdict", "checks", "diagnostic_count"],
+      "properties": {
+        "verdict": {"enum": ["PASS", "FAIL", "INCONCLUSIVE", "ERROR", null]},
+        "checks": {"type": "array"},
+        "diagnostic_count": {"type": "integer", "minimum": 0}
+      }
+    },
+    "evidence": {"type": "array"},
+    "producerContext": {"type": "object"},
+    "tool": {"type": "object"},
+    "trustBoundary": {"type": "string"}
+  },
+  "additionalProperties": false
+}
