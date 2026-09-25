@@ -36,6 +36,48 @@ ReproCert is intentionally narrow. It does **not** claim that a benchmark is unb
 
 `CERTIFICATE INTEGRITY ≠ PRODUCER AUTHENTICITY ≠ SCIENTIFIC TRUTH`
 
+## Quickstart — self-service
+
+No AETHER X account, API key, hosted service, or approval is required.
+
+Install from PyPI:
+
+```bash
+python -m pip install aetherx-reprocert
+```
+
+The stable GitHub v0.2 channel remains available as an alternative:
+
+```bash
+python -m pip install "git+https://github.com/AETHERXGLOBAL/reprocert.git@v0.2"
+```
+
+Initialize a pytest project and generate a GitHub Actions workflow:
+
+```bash
+reprocert init pytest --github-actions
+reprocert doctor
+reprocert run reprocert.yml -o reprocert-certificate.json
+reprocert verify reprocert-certificate.json --claim reprocert.yml --evidence-root .
+```
+
+For other workflows:
+
+```bash
+reprocert init command --github-actions
+reprocert init benchmark --github-actions
+```
+
+Or run `reprocert init --github-actions` and let ReproCert conservatively detect pytest.
+
+Expected result:
+
+```text
+ReproCert verdict: PASS
+```
+
+See the [5-Minute Start](docs/QUICKSTART_5_MIN.md) and [Troubleshooting](docs/TROUBLESHOOTING.md).
+
 ## Why it exists
 
 Modern software and AI projects routinely publish performance, compatibility, reproducibility and data-quality claims. The evidence behind those claims is often fragmented across scripts, CI logs, screenshots and human interpretation.
@@ -78,48 +120,6 @@ You do **not** need to redesign your project around ReproCert. The preferred fir
 **[Open an Adoption / Integration request →](https://github.com/AETHERXGLOBAL/reprocert/issues/new?template=adoption.yml)**
 
 You can also read the public adopter call in [Issue #7](https://github.com/AETHERXGLOBAL/reprocert/issues/7).
-
-## Quickstart — self-service
-
-No AETHER X account, API key, hosted service, or approval is required.
-
-Install from PyPI:
-
-```bash
-python -m pip install aetherx-reprocert
-```
-
-The stable GitHub v0.2 channel remains available as an alternative:
-
-```bash
-python -m pip install "git+https://github.com/AETHERXGLOBAL/reprocert.git@v0.2"
-```
-
-Initialize a pytest project and generate a GitHub Actions workflow:
-
-```bash
-reprocert init pytest --github-actions
-reprocert doctor
-reprocert run reprocert.yml -o reprocert-certificate.json
-reprocert verify reprocert-certificate.json --claim reprocert.yml --evidence-root .
-```
-
-For other workflows:
-
-```bash
-reprocert init command --github-actions
-reprocert init benchmark --github-actions
-```
-
-Or run `reprocert init --github-actions` and let ReproCert conservatively detect pytest.
-
-Expected result:
-
-```text
-ReproCert verdict: PASS
-```
-
-See the [5-Minute Start](docs/QUICKSTART_5_MIN.md) and [Troubleshooting](docs/TROUBLESHOOTING.md).
 
 ## Example claim
 
