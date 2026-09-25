@@ -54,6 +54,24 @@ Still open for evidence-driven follow-up:
 - [ ] container-runtime portability beyond the validated Linux/Docker path
 - [ ] stable pre-1.0 compatibility policy based on adopter feedback
 
+## v0.2.2 — Self-service developer onboarding
+
+Implemented on the current development line:
+
+- [x] `reprocert init` with pytest, command, benchmark and conservative auto-detection profiles
+- [x] optional generated GitHub Actions workflow
+- [x] overwrite protection with explicit `--force`
+- [x] `reprocert doctor` with machine-readable output
+- [x] five-minute start guide
+- [x] troubleshooting guide
+- [x] stable `v0.2` GitHub action/install channel design
+- [x] PyPI Trusted Publishing workflow using GitHub OIDC
+- [x] release tag/package-version consistency gate
+- [ ] one-time PyPI Trusted Publisher account configuration
+- [ ] first PyPI publication
+
+The remaining PyPI items are account/release operations, not missing package functionality.
+
 ## v0.3 — Reproducibility systems research
 
 Research candidates:
