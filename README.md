@@ -232,6 +232,7 @@ A certificate self-digest is a stable content identifier. It is **not** a digita
 - [Container profile](docs/CONTAINER_PROFILE.md)
 - [Policy layer](docs/POLICY.md)
 - [Integration guide](docs/INTEGRATION_GUIDE.md)
+- [Adoption evidence](docs/ADOPTION.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Roadmap](ROADMAP.md)
 - [Contributing](CONTRIBUTING.md)
@@ -273,6 +274,16 @@ Not included today:
 - distributed benchmark orchestration;
 - general statistical inference;
 - scientific correctness adjudication.
+
+## Verified cross-repository adoption
+
+ReproCert is now consumed by a separate existing AETHER X repository, **AETHER X Governed Intelligence**, without modifying that project's product logic or existing disclosure checker.
+
+The consumer workflow produces and verifies a ReproCert certificate, applies an explicit policy, generates a privacy-minimized predicate, and creates signed GitHub attestations on `main`.
+
+This is a **same-organization cross-repository adoption proof**, not independent third-party adoption.
+
+See [Adoption Evidence](docs/ADOPTION.md).
 
 ## Project status
 
