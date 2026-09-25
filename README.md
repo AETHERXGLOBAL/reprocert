@@ -164,6 +164,42 @@ expected: 0
 
 Supported metrics are `tests`, `failures`, `errors`, `skipped`, `passed`, and `time_seconds`. See [JUnit Integration](docs/JUNIT.md).
 
+## Pytest-native adapter
+
+Projects that already use pytest can create a ReproCert certificate directly:
+
+```bash
+reprocert pytest --workdir . --output pytest-certificate.json -- -q
+```
+
+The adapter preserves pytest semantics: ordinary test failures become ReproCert `FAIL`, while unexpected pytest execution states remain `ERROR`. See [Pytest-Native Adapter](docs/PYTEST.md).
+
+## Hardened container execution profile
+
+A claim may run through a constrained Docker profile using an immutable image digest:
+
+```yaml
+container:
+  engine: docker
+  image: registry.example/tool@sha256:<64-hex-digest>
+  network: none
+  read_only_root: true
+  drop_capabilities: true
+  no_new_privileges: true
+```
+
+Mutable image tags are rejected. The profile is continuously exercised on GitHub-hosted Ubuntu, but it is **not** described as a proof of deterministic computation. See [Container Profile](docs/CONTAINER_PROFILE.md).
+
+## Certificate policy layer
+
+Organizations can apply acceptance requirements without rewriting the underlying claim verdict:
+
+```bash
+reprocert policy certificate.json policy.yml -o policy-result.json
+```
+
+A certificate may remain `PASS` while the policy result is `FAIL` because, for example, CI or container execution was required. Policy evaluation verifies certificate integrity first. See [Policy Layer](docs/POLICY.md).
+
 ## Custom attestation predicate
 
 Generate a privacy-minimized predicate from a certificate:
@@ -192,6 +228,9 @@ A certificate self-digest is a stable content identifier. It is **not** a digita
 - [Attestation model](docs/ATTESTATION.md)
 - [Claim suites](docs/SUITES.md)
 - [JUnit integration](docs/JUNIT.md)
+- [Pytest-native adapter](docs/PYTEST.md)
+- [Container profile](docs/CONTAINER_PROFILE.md)
+- [Policy layer](docs/POLICY.md)
 - [Integration guide](docs/INTEGRATION_GUIDE.md)
 - [Threat model](docs/THREAT_MODEL.md)
 - [Roadmap](ROADMAP.md)
@@ -210,6 +249,9 @@ Included today:
 - JSON Pointer observations;
 - stdout/stderr/file/JUnit observations;
 - multi-claim suites with aggregate reports;
+- pytest-native quality-gate adapter;
+- digest-pinned hardened Docker execution profile;
+- certificate acceptance policies kept separate from claim verdicts;
 - SHA-256 evidence records;
 - non-secret environment capture;
 - canonical certificate digest;
@@ -228,14 +270,13 @@ Not included today:
 - remote execution;
 - embedded private-key management;
 - OCI publication;
-- policy engines;
 - distributed benchmark orchestration;
 - general statistical inference;
 - scientific correctness adjudication.
 
 ## Project status
 
-**Public Alpha — v0.2 development line (`0.2.0a1`)**
+**Public Alpha — v0.2.1 adoption line (`0.2.1a1`)**
 
 ReproCert is suitable for evaluation and contribution. Interfaces may still change before a stable v1.0 release.
 
