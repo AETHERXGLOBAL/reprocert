@@ -11,6 +11,7 @@
   <a href="./LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/License-Apache--2.0-blue.svg"></a>
   <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-blue.svg">
   <img alt="Status: Public Alpha" src="https://img.shields.io/badge/Status-Public%20Alpha-orange.svg">
+  <a href="https://pypi.org/project/aetherx-reprocert/"><img alt="PyPI" src="https://img.shields.io/pypi/v/aetherx-reprocert.svg"></a>
 </p>
 
 <p align="center">
@@ -82,7 +83,13 @@ You can also read the public adopter call in [Issue #7](https://github.com/AETHE
 
 No AETHER X account, API key, hosted service, or approval is required.
 
-Until the first PyPI publication is completed, install the stable v0.2 channel directly from GitHub:
+Install from PyPI:
+
+```bash
+python -m pip install aetherx-reprocert
+```
+
+The stable GitHub v0.2 channel remains available as an alternative:
 
 ```bash
 python -m pip install "git+https://github.com/AETHERXGLOBAL/reprocert.git@v0.2"
