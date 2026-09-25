@@ -45,10 +45,11 @@ Implemented on the current development line:
 - [x] real Docker integration gate on GitHub-hosted Ubuntu
 - [x] JUnit evidence size bound
 - [x] adoption-focused examples and documentation
+- [x] first same-organization cross-repository consumer integration with signed certificate attestations
 
 Still open for evidence-driven follow-up:
 
-- [ ] external project integration feedback
+- [ ] independent third-party project integration feedback
 - [ ] additional policy rules justified by real use cases
 - [ ] container-runtime portability beyond the validated Linux/Docker path
 - [ ] stable pre-1.0 compatibility policy based on adopter feedback
