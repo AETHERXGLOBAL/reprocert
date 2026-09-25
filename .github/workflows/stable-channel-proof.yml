@@ -8,6 +8,9 @@ on:
       - 'src/**'
       - 'pyproject.toml'
       - '.github/workflows/stable-channel-proof.yml'
+  pull_request:
+    paths:
+      - '.github/workflows/stable-channel-proof.yml'
   workflow_dispatch:
 
 permissions:
