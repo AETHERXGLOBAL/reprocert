@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .certificate import seal_certificate
 from .claim import Claim, validate_claim
 from .runner import run_claim
 
@@ -79,4 +80,5 @@ def run_pytest_adapter(
 
     certificate = run_claim(Claim(raw=raw, path=generated_claim))
     certificate.setdefault("metadata", {})["adapter"] = "pytest-native"
+    seal_certificate(certificate)
     return certificate, generated_claim
