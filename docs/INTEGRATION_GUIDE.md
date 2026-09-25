@@ -1,13 +1,17 @@
 # Integration Guide
 
-## Local CLI
+## Self-service local CLI
 
 ```bash
-python -m pip install -e .
-reprocert run path/to/claim.yml -o certificate.json
-reprocert verify certificate.json --claim path/to/claim.yml --evidence-root path/to/evidence
+python -m pip install "git+https://github.com/AETHERXGLOBAL/reprocert.git@v0.2"
+reprocert init --github-actions
+reprocert doctor
+reprocert run reprocert.yml -o certificate.json
+reprocert verify certificate.json --claim reprocert.yml --evidence-root .
 reprocert inspect certificate.json --json
 ```
+
+The init command supports `pytest`, `command`, and `benchmark` profiles. It refuses to overwrite existing generated files unless `--force` is supplied.
 
 ## Multi-claim suite
 
@@ -40,7 +44,7 @@ permissions:
 steps:
   - uses: actions/checkout@v7
 
-  - uses: AETHERXGLOBAL/reprocert@main
+  - uses: AETHERXGLOBAL/reprocert@v0.2
     id: reprocert
     with:
       claim: path/to/claim.yml
