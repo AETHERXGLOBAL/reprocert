@@ -67,10 +67,10 @@ Implemented on the current development line:
 - [x] stable `v0.2` GitHub action/install channel design
 - [x] PyPI Trusted Publishing workflow using GitHub OIDC
 - [x] release tag/package-version consistency gate
-- [ ] one-time PyPI Trusted Publisher account configuration
-- [ ] first PyPI publication
+- [x] one-time PyPI Trusted Publisher account configuration
+- [x] first PyPI publication
 
-The remaining PyPI items are account/release operations, not missing package functionality.
+PyPI self-service distribution is now operational through Trusted Publishing.
 
 ## v0.3 — Reproducibility systems research
 
