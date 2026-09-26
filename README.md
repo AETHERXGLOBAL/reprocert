@@ -78,6 +78,12 @@ ReproCert verdict: PASS
 
 See the [5-Minute Start](docs/QUICKSTART_5_MIN.md) and [Troubleshooting](docs/TROUBLESHOOTING.md).
 
+### Independent technical evaluation
+
+For a bounded 5–10 minute evaluator path that starts from the public PyPI distribution, produces a machine-readable certificate, and verifies it locally, use the **[Technical Evaluation Pack](docs/TECHNICAL_EVALUATION.md)**.
+
+`SELF-EVALUATION PASS ≠ INDEPENDENT ADOPTION`
+
 ## Why it exists
 
 Modern software and AI projects routinely publish performance, compatibility, reproducibility and data-quality claims. The evidence behind those claims is often fragmented across scripts, CI logs, screenshots and human interpretation.
@@ -276,6 +282,7 @@ A certificate self-digest is a stable content identifier. It is **not** a digita
 - [Container profile](docs/CONTAINER_PROFILE.md)
 - [Policy layer](docs/POLICY.md)
 - [5-minute start](docs/QUICKSTART_5_MIN.md)
+- [Technical evaluation pack](docs/TECHNICAL_EVALUATION.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Integration guide](docs/INTEGRATION_GUIDE.md)
 - [Publishing](docs/PUBLISHING.md)
