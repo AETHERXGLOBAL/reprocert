@@ -1,0 +1,78 @@
+name: Technical Evaluation Pack
+
+on:
+  pull_request:
+    paths:
+      - 'README.md'
+      - 'docs/TECHNICAL_EVALUATION.md'
+      - '.github/workflows/technical-evaluation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'README.md'
+      - 'docs/TECHNICAL_EVALUATION.md'
+      - '.github/workflows/technical-evaluation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-evaluator-path:
+    name: Public PyPI evaluator round-trip
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout evaluation target
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+
+      - name: Install public distribution and evaluator dependency
+        run: |
+          set -euo pipefail
+          python -m pip install --no-cache-dir aetherx-reprocert pytest
+          reprocert --version
+          python -m pip show aetherx-reprocert
+
+      - name: Execute documented pytest-native evaluation
+        run: |
+          set -euo pipefail
+          reprocert pytest \
+            --workdir . \
+            --output technical-evaluation-certificate.json \
+            -- -q
+          test -f .reprocert-pytest-claim.json
+          test -f .reprocert-pytest-junit.xml
+          test -f technical-evaluation-certificate.json
+
+      - name: Independently verify emitted certificate
+        run: |
+          set -euo pipefail
+          reprocert verify \
+            technical-evaluation-certificate.json \
+            --claim .reprocert-pytest-claim.json \
+            --evidence-root .
+
+      - name: Capture evaluator evidence
+        if: always()
+        run: |
+          python --version > technical-evaluation-environment.txt
+          python -m pip show aetherx-reprocert >> technical-evaluation-environment.txt
+          git rev-parse HEAD >> technical-evaluation-environment.txt
+
+      - name: Upload evaluation evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: reprocert-technical-evaluation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            technical-evaluation-certificate.json
+            .reprocert-pytest-claim.json
+            .reprocert-pytest-junit.xml
+            technical-evaluation-environment.txt
+          if-no-files-found: warn
