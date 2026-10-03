@@ -1,0 +1,535 @@
+name: ReproCert Final Supported Alpha Qualification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/final-supported-alpha.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RELEASE_VERSION: '0.2.2a1'
+  RELEASE_TAG: 'v0.2.2a1'
+  RELEASE_COMMIT: '4f802fa23891c848b6a984479f5ecc2bb7fb100e'
+  STABLE_V02_COMMIT: '6e484163d2cbf3b9fbbf484c462835e80a757f3b'
+
+jobs:
+  published-runtime-matrix:
+    name: Published PyPI / ${{ matrix.os }} / Python ${{ matrix.python }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest, macos-latest]
+        python: ['3.11', '3.12', '3.13', '3.14']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install exact published package
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --no-cache-dir "aetherx-reprocert==$RELEASE_VERSION"
+          reprocert --version
+          python - <<'PY'
+          import importlib.metadata
+          import os
+          version = importlib.metadata.version('aetherx-reprocert')
+          assert version == os.environ['RELEASE_VERSION'], version
+          print('published package identity:', version)
+          PY
+
+      - name: Zero-contact init / doctor / run / verify / inspect
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir consumer
+          cd consumer
+          reprocert init command --github-actions
+          reprocert doctor
+          reprocert run reprocert.yml -o certificate.json
+          reprocert verify certificate.json --claim reprocert.yml --evidence-root .
+          reprocert inspect certificate.json --json > inspect.json
+          grep -q 'AETHERXGLOBAL/reprocert@v0.2' .github/workflows/reprocert.yml
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          cert = json.loads(Path('certificate.json').read_text(encoding='utf-8'))
+          summary = json.loads(Path('inspect.json').read_text(encoding='utf-8'))
+          assert cert['metadata']['tool_version'] == os.environ['RELEASE_VERSION']
+          assert cert['verdict'] == 'PASS'
+          assert summary['verdict'] == 'PASS'
+          assert summary['certificate_sha256'] == cert['integrity']['certificate_sha256']
+          PY
+
+  verdict-and-integrity-falsification:
+    name: Public package / verdict + tamper falsification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+
+      - name: Install exact published package
+        run: python -m pip install --disable-pip-version-check --no-cache-dir "aetherx-reprocert==$RELEASE_VERSION"
+
+      - name: Materialize verdict fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          def claim(identifier, command, source, op='contains', expected='ok', evidence=None, timeout=10):
+              return {
+                  'apiVersion': 'reprocert.dev/v1alpha1',
+                  'kind': 'ReproducibilityClaim',
+                  'metadata': {'id': identifier, 'title': identifier},
+                  'spec': {
+                      'command': command,
+                      'timeout_seconds': timeout,
+                      'evidence': evidence or [],
+                      'checks': [{
+                          'id': 'check',
+                          'source': source,
+                          'op': op,
+                          'expected': expected,
+                      }],
+                  },
+              }
+
+          fixtures = {
+              'pass.json': claim('pass', [sys.executable, '-c', "print('ok')"], {'type': 'stdout'}),
+              'fail.json': claim('fail', [sys.executable, '-c', "print('actual')"], {'type': 'stdout'}, expected='wanted'),
+              'inconclusive.json': claim('inconclusive', [sys.executable, '-c', "print('ok')"], {'type': 'text', 'path': 'missing.txt'}, op='eq', expected='x'),
+              'error.json': claim('error', [sys.executable, '-c', 'import sys; sys.exit(7)'], {'type': 'exit_code'}, op='eq', expected=0),
+              'evidence-claim.json': claim(
+                  'evidence',
+                  [sys.executable, '-c', "from pathlib import Path; Path('evidence.txt').write_text('original', encoding='utf-8')"],
+                  {'type': 'text', 'path': 'evidence.txt'},
+                  op='eq',
+                  expected='original',
+                  evidence=['evidence.txt'],
+              ),
+          }
+          for path, payload in fixtures.items():
+              Path(path).write_text(json.dumps(payload, indent=2) + '\n', encoding='utf-8')
+          Path('malformed.json').write_text('{}\n', encoding='utf-8')
+          wrong = fixtures['pass.json'].copy()
+          wrong = json.loads(json.dumps(wrong))
+          wrong['metadata']['id'] = 'wrong-claim'
+          Path('wrong-claim.json').write_text(json.dumps(wrong, indent=2) + '\n', encoding='utf-8')
+          PY
+
+      - name: Prove public verdict / exit-code contract
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          reprocert run pass.json -o pass-cert.json
+          reprocert verify pass-cert.json --claim pass.json
+
+          set +e
+          reprocert run fail.json -o fail-cert.json
+          fail_rc=$?
+          reprocert run inconclusive.json -o inconclusive-cert.json
+          inconclusive_rc=$?
+          reprocert run error.json -o error-cert.json
+          error_rc=$?
+          reprocert run malformed.json -o malformed-cert.json
+          malformed_rc=$?
+          set -e
+
+          test "$fail_rc" -eq 1
+          test "$inconclusive_rc" -eq 3
+          test "$error_rc" -eq 4
+          test "$malformed_rc" -eq 2
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          expected = {
+              'pass-cert.json': 'PASS',
+              'fail-cert.json': 'FAIL',
+              'inconclusive-cert.json': 'INCONCLUSIVE',
+              'error-cert.json': 'ERROR',
+          }
+          for path, verdict in expected.items():
+              cert = json.loads(Path(path).read_text(encoding='utf-8'))
+              assert cert['verdict'] == verdict, (path, cert['verdict'])
+          assert not Path('malformed-cert.json').exists()
+          PY
+
+      - name: Prove certificate tampering and wrong identity are rejected
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          cert = json.loads(Path('pass-cert.json').read_text(encoding='utf-8'))
+          changed_verdict = json.loads(json.dumps(cert))
+          changed_verdict['verdict'] = 'FAIL'
+          Path('tampered-verdict.json').write_text(json.dumps(changed_verdict) + '\n', encoding='utf-8')
+          changed_check = json.loads(json.dumps(cert))
+          changed_check['checks'][0]['observed'] = 'forged'
+          Path('tampered-check.json').write_text(json.dumps(changed_check) + '\n', encoding='utf-8')
+          Path('corrupted-certificate.json').write_text('{not-json\n', encoding='utf-8')
+          PY
+
+          set +e
+          reprocert verify tampered-verdict.json
+          tampered_verdict_rc=$?
+          reprocert verify tampered-check.json
+          tampered_check_rc=$?
+          reprocert verify pass-cert.json --claim wrong-claim.json
+          wrong_claim_rc=$?
+          reprocert verify corrupted-certificate.json
+          corrupt_rc=$?
+          set -e
+
+          test "$tampered_verdict_rc" -eq 1
+          test "$tampered_check_rc" -eq 1
+          test "$wrong_claim_rc" -eq 1
+          test "$corrupt_rc" -eq 2
+
+      - name: Prove evidence-content tampering is rejected
+        shell: bash
+        run: |
+          set -euo pipefail
+          reprocert run evidence-claim.json -o evidence-cert.json
+          reprocert verify evidence-cert.json --claim evidence-claim.json --evidence-root .
+          printf 'tampered' > evidence.txt
+          set +e
+          reprocert verify evidence-cert.json --claim evidence-claim.json --evidence-root .
+          rc=$?
+          set -e
+          test "$rc" -eq 1
+
+  repeated-run-stability:
+    name: Public package / 250 PASS + 100 FAIL stability
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+
+      - name: Install exact published package
+        run: python -m pip install --disable-pip-version-check --no-cache-dir "aetherx-reprocert==$RELEASE_VERSION"
+
+      - name: Create deterministic stress claims
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+          base = {
+              'apiVersion': 'reprocert.dev/v1alpha1',
+              'kind': 'ReproducibilityClaim',
+              'metadata': {'id': 'stress-pass', 'title': 'stress pass'},
+              'spec': {
+                  'command': [sys.executable, '-c', "print('stable')"],
+                  'timeout_seconds': 10,
+                  'checks': [{'id': 'stdout', 'source': {'type': 'stdout'}, 'op': 'contains', 'expected': 'stable'}],
+              },
+          }
+          Path('stress-pass.json').write_text(json.dumps(base, indent=2) + '\n', encoding='utf-8')
+          failed = json.loads(json.dumps(base))
+          failed['metadata']['id'] = 'stress-fail'
+          failed['spec']['checks'][0]['expected'] = 'impossible-value'
+          Path('stress-fail.json').write_text(json.dumps(failed, indent=2) + '\n', encoding='utf-8')
+          PY
+
+      - name: Execute 250 PASS iterations with verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 250); do
+            reprocert run stress-pass.json -o pass-cert.json >/dev/null
+            reprocert verify pass-cert.json --claim stress-pass.json >/dev/null
+            python -c "import json; assert json.load(open('pass-cert.json', encoding='utf-8'))['verdict'] == 'PASS'"
+          done
+
+      - name: Execute 100 FAIL iterations with verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 100); do
+            set +e
+            reprocert run stress-fail.json -o fail-cert.json >/dev/null
+            rc=$?
+            set -e
+            test "$rc" -eq 1
+            reprocert verify fail-cert.json --claim stress-fail.json >/dev/null
+            python -c "import json; assert json.load(open('fail-cert.json', encoding='utf-8'))['verdict'] == 'FAIL'"
+          done
+
+  immutable-source-regression:
+    name: Immutable release source / full regression + package build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout immutable release source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          persist-credentials: false
+
+      - name: Verify immutable source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$RELEASE_COMMIT"
+          test -z "$(git status --porcelain)"
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+
+      - name: Run frozen full test suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check -e '.[dev]'
+          pytest
+
+      - name: Rebuild release source distributions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m build
+          ls -l dist
+          test -n "$(find dist -maxdepth 1 -name 'aetherx_reprocert-0.2.2a1-*.whl' -print -quit)"
+          test -f dist/aetherx_reprocert-0.2.2a1.tar.gz
+
+      - name: Assert frozen high-risk implementation boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 'shell=False' src/reprocert/runner.py
+          grep -F 'Path escapes claim directory' src/reprocert/runner.py
+          grep -F 'path must stay inside the working directory' src/reprocert/claim.py
+          grep -F 'CERTIFICATE INTEGRITY' README.md
+          grep -F 'SCIENTIFIC TRUTH' README.md
+
+  public-integration-surfaces:
+    name: Public package / adapters + policy + predicate + Docker
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout immutable examples only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+
+      - name: Install exact public package and pytest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --no-cache-dir "aetherx-reprocert==$RELEASE_VERSION" 'pytest>=8.3,<10'
+
+      - name: Basic claim + policy + predicate
+        working-directory: examples/basic
+        shell: bash
+        run: |
+          set -euo pipefail
+          reprocert run claim.yml -o certificate.json
+          reprocert verify certificate.json --claim claim.yml --evidence-root .
+          reprocert policy certificate.json ../policy/strict-ci.yml -o policy-result.json --json
+          reprocert predicate certificate.json -o predicate.json --json
+          reprocert inspect certificate.json --json
+
+      - name: JUnit adapter round-trip
+        working-directory: examples/junit
+        shell: bash
+        run: |
+          set -euo pipefail
+          reprocert run claim.yml -o certificate.json
+          reprocert verify certificate.json --claim claim.yml --evidence-root .
+
+      - name: Pytest-native adapter round-trip
+        shell: bash
+        run: |
+          set -euo pipefail
+          reprocert pytest --workdir examples/pytest-native -o pytest-certificate.json -- -q test_sample.py
+          reprocert verify pytest-certificate.json --claim examples/pytest-native/.reprocert-pytest-claim.json --evidence-root examples/pytest-native
+
+      - name: Multi-claim suite round-trip
+        working-directory: examples
+        shell: bash
+        run: |
+          set -euo pipefail
+          reprocert suite suite.yml -o suite-report.json --certificate-dir .reprocert/certificates --json
+          test -s suite-report.json
+
+      - name: Resolve immutable container image identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull alpine:3.20
+          image="$(docker image inspect alpine:3.20 --format '{{index .RepoDigests 0}}')"
+          test -n "$image"
+          echo "REPROCERT_TEST_IMAGE=$image" >> "$GITHUB_ENV"
+
+      - name: Execute hardened container profile through public package
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          claim = {
+              'apiVersion': 'reprocert.dev/v1alpha1',
+              'kind': 'ReproducibilityClaim',
+              'metadata': {'id': 'final-alpha-container', 'title': 'Final alpha container profile'},
+              'spec': {
+                  'command': ['sh', '-c', 'printf ok > result.txt'],
+                  'container': {
+                      'engine': 'docker',
+                      'image': os.environ['REPROCERT_TEST_IMAGE'],
+                      'network': 'none',
+                      'read_only_root': True,
+                      'drop_capabilities': True,
+                      'no_new_privileges': True,
+                      'pids_limit': 128,
+                  },
+                  'evidence': ['result.txt'],
+                  'checks': [{'id': 'result', 'source': {'type': 'text', 'path': 'result.txt'}, 'op': 'eq', 'expected': 'ok'}],
+              },
+          }
+          Path('container-claim.json').write_text(json.dumps(claim, indent=2) + '\n', encoding='utf-8')
+          PY
+          reprocert run container-claim.json -o container-certificate.json
+          reprocert verify container-certificate.json --claim container-claim.json --evidence-root .
+          python - <<'PY'
+          import json
+          import os
+          cert = json.load(open('container-certificate.json', encoding='utf-8'))
+          profile = cert['run']['container']
+          assert cert['verdict'] == 'PASS'
+          assert profile['image'] == os.environ['REPROCERT_TEST_IMAGE']
+          assert profile['network'] == 'none'
+          assert profile['read_only_root'] is True
+          assert profile['drop_capabilities'] is True
+          assert profile['no_new_privileges'] is True
+          PY
+
+  distribution-and-stable-action:
+    name: PyPI distributions + stable v0.2 Action
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout immutable fixture
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+
+      - name: Download exact PyPI wheel and sdist
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir public-wheel public-sdist
+          python -m pip download --disable-pip-version-check --no-deps --only-binary=:all: "aetherx-reprocert==$RELEASE_VERSION" -d public-wheel
+          python -m pip download --disable-pip-version-check --no-deps --no-binary=:all: "aetherx-reprocert==$RELEASE_VERSION" -d public-sdist
+          test -n "$(find public-wheel -maxdepth 1 -name '*.whl' -print -quit)"
+          test -n "$(find public-sdist -maxdepth 1 -name '*.tar.gz' -print -quit)"
+          sha256sum public-wheel/* public-sdist/*
+
+      - name: Clean-install wheel artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv "$RUNNER_TEMP/wheel-env"
+          "$RUNNER_TEMP/wheel-env/bin/python" -m pip install --disable-pip-version-check public-wheel/*.whl
+          "$RUNNER_TEMP/wheel-env/bin/reprocert" --version
+          "$RUNNER_TEMP/wheel-env/bin/python" - <<'PY'
+          import importlib.metadata, os
+          assert importlib.metadata.version('aetherx-reprocert') == os.environ['RELEASE_VERSION']
+          PY
+
+      - name: Clean-install sdist artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv "$RUNNER_TEMP/sdist-env"
+          "$RUNNER_TEMP/sdist-env/bin/python" -m pip install --disable-pip-version-check public-sdist/*.tar.gz
+          "$RUNNER_TEMP/sdist-env/bin/reprocert" --version
+          "$RUNNER_TEMP/sdist-env/bin/python" - <<'PY'
+          import importlib.metadata, os
+          assert importlib.metadata.version('aetherx-reprocert') == os.environ['RELEASE_VERSION']
+          PY
+
+      - name: Verify stable v0.2 source relationship
+        shell: bash
+        run: |
+          set -euo pipefail
+          stable="$(git ls-remote https://github.com/AETHERXGLOBAL/reprocert.git refs/heads/v0.2 | cut -f1)"
+          tag="$(git ls-remote https://github.com/AETHERXGLOBAL/reprocert.git refs/tags/v0.2.2a1 | cut -f1)"
+          test "$stable" = "$STABLE_V02_COMMIT"
+          test "$tag" = "$RELEASE_COMMIT"
+          git fetch --no-tags origin "$STABLE_V02_COMMIT"
+          changed="$(git diff --name-only "$RELEASE_COMMIT" "$STABLE_V02_COMMIT")"
+          printf '%s\n' "$changed"
+          test -n "$changed"
+          if printf '%s\n' "$changed" | grep -Ev '^(README.md|CHANGELOG.md|ROADMAP.md|docs/)'; then
+            echo 'Stable v0.2 differs from immutable release in non-documentation product files.' >&2
+            exit 1
+          fi
+
+      - name: Stable Action PASS contract
+        id: stable
+        uses: AETHERXGLOBAL/reprocert@v0.2
+        with:
+          claim: examples/basic/claim.yml
+          certificate: stable-action-certificate.json
+
+      - name: Assert stable Action outputs
+        shell: bash
+        env:
+          VERDICT: ${{ steps.stable.outputs.verdict }}
+          DIGEST: ${{ steps.stable.outputs.certificate-digest }}
+        run: |
+          set -euo pipefail
+          test "$VERDICT" = 'PASS'
+          test -n "$DIGEST"
+          test -s stable-action-certificate.json
+          python - <<'PY'
+          import json
+          cert = json.load(open('stable-action-certificate.json', encoding='utf-8'))
+          assert cert['verdict'] == 'PASS'
+          PY
