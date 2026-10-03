@@ -20,6 +20,28 @@
 
 ---
 
+## Why developers use it
+
+Technical claims often live in README text, benchmark screenshots, CI logs or one-off scripts. ReproCert turns the claim and its evidence path into something another developer can execute and verify.
+
+Typical uses include:
+
+- proving a benchmark stayed below an explicit threshold;
+- turning pytest/JUnit results into a portable certificate;
+- checking reproducible-build or artifact properties in CI;
+- applying explicit policy to a certificate without rewriting the original verdict;
+- attaching machine-readable evidence to AI, software or research workflows.
+
+The core workflow is intentionally simple:
+
+```text
+claim -> exact command -> evidence -> explicit checks -> certificate
+```
+
+Start with the **[5-Minute Start](docs/QUICKSTART_5_MIN.md)**, inspect the **[Technical Evaluation Pack](docs/TECHNICAL_EVALUATION.md)**, or open an **[Adoption / Integration request](https://github.com/AETHERXGLOBAL/reprocert/issues/new?template=adoption.yml)**.
+
+If ReproCert is useful to your workflow, a GitHub **Star** helps other developers discover it. Failed reproductions, negative findings and integration friction are also useful project evidence.
+
 ## What ReproCert does
 
 ReproCert is an open-source developer tool from **AETHER X GLOBAL** that turns explicit technical claims into machine-checkable, reproducible evidence records.
