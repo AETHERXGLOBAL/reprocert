@@ -10,7 +10,7 @@
   <a href="https://github.com/AETHERXGLOBAL/reprocert/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/AETHERXGLOBAL/reprocert/actions/workflows/ci.yml/badge.svg"></a>
   <a href="./LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/License-Apache--2.0-blue.svg"></a>
   <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-blue.svg">
-  <img alt="Status: Public Alpha" src="https://img.shields.io/badge/Status-Public%20Alpha-orange.svg">
+  <img alt="Status: Final Supported Alpha" src="https://img.shields.io/badge/Status-Final%20Supported%20Alpha-brightgreen.svg">
   <a href="https://pypi.org/project/aetherx-reprocert/"><img alt="PyPI" src="https://img.shields.io/pypi/v/aetherx-reprocert.svg"></a>
 </p>
 
@@ -305,6 +305,7 @@ A certificate self-digest is a stable content identifier. It is **not** a digita
 - [Policy layer](docs/POLICY.md)
 - [5-minute start](docs/QUICKSTART_5_MIN.md)
 - [Technical evaluation pack](docs/TECHNICAL_EVALUATION.md)
+- [Current product status](docs/STATUS.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Integration guide](docs/INTEGRATION_GUIDE.md)
 - [Publishing](docs/PUBLISHING.md)
@@ -316,7 +317,7 @@ A certificate self-digest is a stable content identifier. It is **not** a digita
 - [Governance](GOVERNANCE.md)
 - [Support](SUPPORT.md)
 
-## Current public-alpha scope
+## Current supported-alpha scope
 
 Included today:
 
@@ -366,9 +367,13 @@ See [Adoption Evidence](docs/ADOPTION.md).
 
 ## Project status
 
-**Public Alpha — v0.2.2 self-service line (`0.2.2a1`)**
+**Final Supported Alpha — v0.2.2a1**
 
-ReproCert is suitable for evaluation and contribution. Interfaces may still change before a stable v1.0 release.
+ReproCert v0.2.2a1 is product-ready and supported within its documented Python/CLI/GitHub Action boundary. The exact public PyPI package passed the final qualification matrix across Ubuntu, Windows and macOS with Python 3.11–3.14, plus verdict/tamper falsification, repeated-run stability, package, adapter and stable-channel checks.
+
+The designation is deliberately bounded: it does not claim independent third-party adoption, producer authentication from a certificate alone, universal future OS/runtime compatibility, scientific validity, security certification, or stable-v1 compatibility. Repository governance hardening is tracked separately and does not change the qualification of immutable `v0.2.2a1`.
+
+See [Current Product Status](docs/STATUS.md) for the qualification evidence and declared limitations.
 
 ## License
 
