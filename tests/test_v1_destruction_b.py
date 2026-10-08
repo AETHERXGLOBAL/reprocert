@@ -97,13 +97,12 @@ spec:
     assert "producer authenticity" in boundary
 
 
-def test_rc_identity_cannot_satisfy_final_release_tag() -> None:
+def test_final_source_identity_exactly_matches_final_release_tag() -> None:
     data = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     version = data["project"]["version"]
 
-    assert version == "1.0.0rc1"
-    assert f"v{version}" == "v1.0.0rc1"
-    assert f"v{version}" != "v1.0.0"
+    assert version == "1.0.0"
+    assert f"v{version}" == "v1.0.0"
 
 
 def test_generated_stable_workflow_never_downgrades_to_alpha_channel(
