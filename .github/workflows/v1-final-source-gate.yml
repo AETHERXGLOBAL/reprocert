@@ -1,0 +1,181 @@
+name: ReproCert v1 Final Source Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'schemas/**'
+      - 'docs/V1_*.md'
+      - 'docs/COMPATIBILITY.md'
+      - 'pyproject.toml'
+      - 'action.yml'
+      - '.github/workflows/v1-final-source-gate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'schemas/**'
+      - 'docs/V1_*.md'
+      - 'docs/COMPATIBILITY.md'
+      - 'pyproject.toml'
+      - 'action.yml'
+      - '.github/workflows/v1-final-source-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-matrix:
+    name: Final source / ${{ matrix.os }} / Python ${{ matrix.python }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest, macos-latest]
+        python: ['3.11', '3.12', '3.13', '3.14']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install exact source
+        run: python -m pip install -e ".[dev]"
+      - name: Verify final identity
+        shell: python
+        run: |
+          import reprocert
+          import tomllib
+          from pathlib import Path
+          data = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+          assert data["project"]["version"] == "1.0.0"
+          assert reprocert.__version__ == "1.0.0"
+          assert "Development Status :: 5 - Production/Stable" in data["project"]["classifiers"]
+      - name: Run complete test suite
+        run: pytest
+
+  semantic-destruction:
+    name: Contract and destruction replay
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+      - name: Install test dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Replay stable contract and both destruction rounds
+        run: |
+          pytest -q \
+            tests/test_v1_contract.py \
+            tests/test_v1_destruction.py \
+            tests/test_v1_destruction_b.py \
+            tests/test_v1_release_control.py \
+            tests/test_release_workflow.py
+
+  alpha-forward-compatibility:
+    name: Published Alpha -> final v1 source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout final source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+      - name: Produce legacy artifact with exact published Alpha
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv alpha-env
+          alpha-env/bin/python -m pip install --disable-pip-version-check --no-cache-dir "aetherx-reprocert==0.2.2a1"
+          mkdir compat
+          cat > compat/claim.yml <<'YAML'
+          apiVersion: reprocert.dev/v1alpha1
+          kind: ReproducibilityClaim
+          metadata: {id: final-source-alpha-compat}
+          spec:
+            command: [python, -c, "from pathlib import Path; Path('evidence.txt').write_text('alpha', encoding='utf-8')"]
+            evidence: [evidence.txt]
+            checks:
+              - id: marker
+                source: {type: text, path: evidence.txt}
+                op: eq
+                expected: alpha
+          YAML
+          alpha-env/bin/reprocert run compat/claim.yml -o compat/alpha-certificate.json
+          alpha-env/bin/reprocert verify compat/alpha-certificate.json --claim compat/claim.yml --evidence-root compat
+          sha256sum compat/claim.yml compat/alpha-certificate.json > compat/before.sha256
+      - name: Verify with exact final source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -e .
+          reprocert verify compat/alpha-certificate.json --claim compat/claim.yml --evidence-root compat
+          sha256sum -c compat/before.sha256
+          reprocert run compat/claim.yml -o compat/v1-certificate.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          old = json.loads(Path("compat/alpha-certificate.json").read_text(encoding="utf-8"))
+          new = json.loads(Path("compat/v1-certificate.json").read_text(encoding="utf-8"))
+          assert old["apiVersion"] == "reprocert.dev/certificate/v1alpha1"
+          assert new["apiVersion"] == "reprocert.dev/certificate/v1"
+          assert old["claim"]["sha256"] == new["claim"]["sha256"]
+          assert new["metadata"]["tool_version"] == "1.0.0"
+          assert new["verdict"] == "PASS"
+          PY
+
+  final-distributions:
+    name: Final wheel/sdist consumer
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+      - name: Build final distributions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install 'build>=1.2,<2'
+          python -m build
+          wheel="$(find dist -maxdepth 1 -name 'aetherx_reprocert-1.0.0-*.whl' -print -quit)"
+          test -n "$wheel"
+          test -f dist/aetherx_reprocert-1.0.0.tar.gz
+          python -m pip install "$wheel"
+          test "$(reprocert --version | tr -d '\r')" = "reprocert 1.0.0"
+      - name: Zero-contact built-wheel rehearsal
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir consumer
+          cd consumer
+          reprocert init command --github-actions
+          grep -F 'apiVersion: reprocert.dev/v1' reprocert.yml
+          grep -F 'AETHERXGLOBAL/reprocert@v1' .github/workflows/reprocert.yml
+          reprocert doctor
+          reprocert run reprocert.yml -o certificate.json
+          reprocert verify certificate.json --claim reprocert.yml --evidence-root .
+          reprocert inspect certificate.json --json > inspect.json
