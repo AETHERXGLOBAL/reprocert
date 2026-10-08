@@ -70,7 +70,7 @@ def initialize_project(
 
 def _claim_template(profile: str) -> str:
     if profile == "pytest":
-        return """apiVersion: reprocert.dev/v1alpha1
+        return """apiVersion: reprocert.dev/v1
 kind: ReproducibilityClaim
 metadata:
   id: pytest-quality-gate
@@ -104,7 +104,7 @@ spec:
 """
 
     if profile == "benchmark":
-        return """apiVersion: reprocert.dev/v1alpha1
+        return """apiVersion: reprocert.dev/v1
 kind: ReproducibilityClaim
 metadata:
   id: benchmark-threshold
@@ -125,7 +125,7 @@ spec:
       expected: 1000
 """
 
-    return """apiVersion: reprocert.dev/v1alpha1
+    return """apiVersion: reprocert.dev/v1
 kind: ReproducibilityClaim
 metadata:
   id: command-evidence
@@ -196,7 +196,7 @@ jobs:
 
 """ + install_step + """
       - name: Run ReproCert
-        uses: AETHERXGLOBAL/reprocert@v0.2
+        uses: AETHERXGLOBAL/reprocert@v1
         with:
           claim: reprocert.yml
           certificate: reprocert-certificate.json
