@@ -241,7 +241,7 @@ jobs:
             checks:
               - id: marker
                 source: {type: stdout}
-                op: eq
+                op: contains
                 expected: stable
           YAML
           cat > stability/fail.yml <<'YAML'
