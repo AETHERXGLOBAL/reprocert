@@ -2,7 +2,7 @@
 
 ## Supported status
 
-ReproCert is currently **public alpha software**. Security fixes target the current `main` branch and the latest published package/release line when one exists.
+ReproCert **v1.0.0** is the current public stable release, supported within the documented Python 3.11–3.14 / tested Ubuntu, Windows and macOS CLI + GitHub Action product boundary. Security fixes are developed and qualified against the protected `main` branch and published only through separately verified release/channel updates. Immutable release tags are never silently patched; users should pin an exact qualified version for reproducible deployments. Historical `v0.2.2a1` remains Alpha and is not the current stable release.
 
 ## Core execution boundary
 
