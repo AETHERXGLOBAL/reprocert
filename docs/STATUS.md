@@ -4,17 +4,17 @@
 
 Program #27 is qualifying a stable-v1 candidate.
 
-Candidate source version: `1.0.0rc1`  
-Candidate status: `V1 CONTRACT / COMPATIBILITY QUALIFICATION — NOT PUBLICLY RELEASED`
+Candidate source version: `1.0.0`  
+Candidate status: `FINAL V1 SOURCE CANDIDATE — NOT PUBLICLY RELEASED`
 
-The **current public release remains `v0.2.2a1`** until the v1 exact-source release gate passes. No PyPI `1.0.0`, GitHub `v1.0.0` release or public `@v1` Action channel is implied by candidate code on `main`.
+The **current public release remains `v0.2.2a1`** until the final release transaction completes. Source version `1.0.0` on a candidate branch or on `main` does not by itself mean PyPI `1.0.0`, GitHub Release `v1.0.0`, or public `@v1` exists.
 
 Stable-v1 contract documents:
 - `docs/V1_PRODUCTIZATION_GAP_ANALYSIS.md`
 - `docs/V1_STABLE_CONTRACT.md`
 - `docs/COMPATIBILITY.md`
 
-Date: 2026-10-03
+Date: 2026-10-08
 
 ## Current public product state
 
