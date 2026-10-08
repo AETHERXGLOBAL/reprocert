@@ -11,7 +11,9 @@ import yaml
 from .util import canonical_json_bytes, sha256_bytes
 from .verification import verify_certificate
 
-POLICY_API_VERSION = "reprocert.dev/policy/v1alpha1"
+POLICY_API_VERSION = "reprocert.dev/policy/v1"
+LEGACY_POLICY_API_VERSION = "reprocert.dev/policy/v1alpha1"
+SUPPORTED_POLICY_API_VERSIONS = frozenset({POLICY_API_VERSION, LEGACY_POLICY_API_VERSION})
 POLICY_KIND = "ReproCertPolicy"
 
 
@@ -60,8 +62,9 @@ def load_policy(path: str | Path) -> Policy:
 
 
 def validate_policy(raw: dict[str, Any]) -> None:
-    if raw.get("apiVersion") != POLICY_API_VERSION:
-        raise PolicyError(f"apiVersion must be {POLICY_API_VERSION!r}")
+    if raw.get("apiVersion") not in SUPPORTED_POLICY_API_VERSIONS:
+        supported = ", ".join(sorted(SUPPORTED_POLICY_API_VERSIONS))
+        raise PolicyError(f"apiVersion must be one of: {supported}")
     if raw.get("kind") != POLICY_KIND:
         raise PolicyError(f"kind must be {POLICY_KIND!r}")
 
@@ -210,7 +213,7 @@ def evaluate_policy(
         else "FAIL"
     )
     result: dict[str, Any] = {
-        "apiVersion": "reprocert.dev/policy-result/v1alpha1",
+        "apiVersion": "reprocert.dev/policy-result/v1",
         "kind": "ReproCertPolicyResult",
         "metadata": {
             "policy_id": policy.policy_id,
