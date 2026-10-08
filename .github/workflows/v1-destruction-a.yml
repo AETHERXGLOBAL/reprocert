@@ -1,0 +1,41 @@
+name: ReproCert v1 Destruction A
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/test_v1_destruction.py'
+      - 'tests/test_v1_contract.py'
+      - 'docs/V1_DESTRUCTION_A_PROTOCOL.md'
+      - '.github/workflows/v1-destruction-a.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  destruction-a:
+    name: Stable-contract adversarial corpus
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+
+      - name: Install candidate
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run v1 destruction corpus
+        run: pytest tests/test_v1_destruction.py tests/test_v1_contract.py
+
+      - name: Re-run high-risk existing regressions
+        run: |
+          pytest tests/test_reprocert.py tests/test_adoption.py tests/test_v02.py
