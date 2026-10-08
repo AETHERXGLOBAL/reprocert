@@ -35,7 +35,7 @@ jobs:
       - name: Install public distribution and evaluator dependency
         run: |
           set -euo pipefail
-          python -m pip install --no-cache-dir aetherx-reprocert pytest
+          python -m pip install --no-cache-dir "aetherx-reprocert==1.0.0" pytest
           reprocert --version
           python -m pip show aetherx-reprocert
 
