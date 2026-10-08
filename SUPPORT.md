@@ -1,6 +1,6 @@
 # Support
 
-ReproCert is an open-source public-alpha project.
+ReproCert is an open-source developer product. The current supported stable release is **v1.0.0**, within its documented CLI, Python and GitHub Action boundaries. The historical `v0.2.2a1` Alpha remains available for reproduction; it is not the recommended current release.
 
 ## Use GitHub Issues for
 
