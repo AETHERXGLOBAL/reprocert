@@ -33,10 +33,10 @@ def test_release_workflow_uses_trusted_publishing_and_pinned_actions() -> None:
     assert "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c" in workflow
 
 
-def test_release_candidate_identity_is_not_stable_public_version_yet() -> None:
+def test_final_source_identity_is_stable_but_not_publication_by_itself() -> None:
     data = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
-    assert data["project"]["version"] == "1.0.0rc1"
-    assert "Development Status :: 4 - Beta" in data["project"]["classifiers"]
+    assert data["project"]["version"] == "1.0.0"
+    assert "Development Status :: 5 - Production/Stable" in data["project"]["classifiers"]
 
 
 def test_action_contract_remains_stable_and_bounded() -> None:

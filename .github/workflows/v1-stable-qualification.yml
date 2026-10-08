@@ -46,7 +46,7 @@ jobs:
 
       - name: Verify candidate identity
         run: |
-          python -c "import reprocert; assert reprocert.__version__ == '1.0.0rc1', reprocert.__version__"
+          python -c "import reprocert; assert reprocert.__version__ == '1.0.0', reprocert.__version__"
           reprocert --version
 
   legacy-forward-compatibility:
@@ -114,7 +114,7 @@ jobs:
           new = json.loads(Path("compat/v1-from-legacy-claim.json").read_text())
           assert old["apiVersion"] == "reprocert.dev/certificate/v1alpha1"
           assert new["apiVersion"] == "reprocert.dev/certificate/v1"
-          assert new["metadata"]["tool_version"] == "1.0.0rc1"
+          assert new["metadata"]["tool_version"] == "1.0.0"
           assert old["claim"]["sha256"] == new["claim"]["sha256"]
           assert new["verdict"] == "PASS"
           PY
@@ -159,7 +159,7 @@ jobs:
           from pathlib import Path
           cert = json.loads(Path("certificate.json").read_text())
           assert cert["apiVersion"] == "reprocert.dev/certificate/v1"
-          assert cert["metadata"]["tool_version"] == "1.0.0rc1"
+          assert cert["metadata"]["tool_version"] == "1.0.0"
           assert cert["verdict"] == "PASS"
           PY
 
@@ -205,5 +205,5 @@ jobs:
           set -euo pipefail
           python -m pip install 'build>=1.2,<2'
           python -m build
-          test -n "$(find dist -maxdepth 1 -name 'aetherx_reprocert-1.0.0rc1-*.whl' -print -quit)"
-          test -f dist/aetherx_reprocert-1.0.0rc1.tar.gz
+          test -n "$(find dist -maxdepth 1 -name 'aetherx_reprocert-1.0.0-*.whl' -print -quit)"
+          test -f dist/aetherx_reprocert-1.0.0.tar.gz

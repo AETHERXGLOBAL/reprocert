@@ -9,16 +9,18 @@ Active under Issue #27.
 Required before release:
 
 - [x] deep productization gap analysis;
-- [ ] stable contract freeze accepted by CI;
-- [ ] stable v1 document identities with Alpha reader compatibility;
-- [ ] exact published Alpha -> v1 certificate verification replay;
-- [ ] full source matrix on Linux / Windows / macOS and Python 3.11–3.14;
-- [ ] destruction round A;
-- [ ] stable release-control and `@v1` channel plan;
-- [ ] RC zero-contact/productization qualification;
-- [ ] destruction round B;
-- [ ] exact-source final review;
-- [ ] explicit `v1.0.0` release decision.
+- [x] stable contract freeze accepted by CI;
+- [x] stable v1 document identities with Alpha reader compatibility;
+- [x] exact published Alpha -> v1 certificate verification replay;
+- [x] full source matrix on Linux / Windows / macOS and Python 3.11–3.14;
+- [x] destruction round A;
+- [x] stable release-control and `@v1` channel plan;
+- [x] RC zero-contact/productization qualification;
+- [x] destruction round B;
+- [x] exact-source final review;
+- [ ] immutable `v1.*` tag governance verified;
+- [ ] final `1.0.0` source identity merged and requalified;
+- [ ] explicit `v1.0.0` release transaction completed.
 
 Scope rule: v1.0 is a **contract-stabilization release**, not a feature-expansion release.
 

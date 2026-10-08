@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aetherx-reprocert"
-version = "1.0.0rc1"
+version = "1.0.0"
 description = "Claim-to-evidence reproducibility certificates for software, AI and research workflows."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -12,7 +12,7 @@ license = "Apache-2.0"
 authors = [{name = "AETHER X GLOBAL"}]
 keywords = ["reproducibility", "ci", "provenance", "evidence", "verification", "attestation"]
 classifiers = [
-  "Development Status :: 4 - Beta",
+  "Development Status :: 5 - Production/Stable",
   "Environment :: Console",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python :: 3",
