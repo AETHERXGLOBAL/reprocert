@@ -70,7 +70,7 @@ def initialize_project(
 
 def _claim_template(profile: str) -> str:
     if profile == "pytest":
-        return """apiVersion: reprocert.dev/v1alpha1
+        return """apiVersion: reprocert.dev/v1
 kind: ReproducibilityClaim
 metadata:
   id: pytest-quality-gate
@@ -104,7 +104,7 @@ spec:
 """
 
     if profile == "benchmark":
-        return """apiVersion: reprocert.dev/v1alpha1
+        return """apiVersion: reprocert.dev/v1
 kind: ReproducibilityClaim
 metadata:
   id: benchmark-threshold
@@ -125,7 +125,7 @@ spec:
       expected: 1000
 """
 
-    return """apiVersion: reprocert.dev/v1alpha1
+    return """apiVersion: reprocert.dev/v1
 kind: ReproducibilityClaim
 metadata:
   id: command-evidence
@@ -187,22 +187,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.13'
 
 """ + install_step + """
       - name: Run ReproCert
-        uses: AETHERXGLOBAL/reprocert@v0.2
+        uses: AETHERXGLOBAL/reprocert@v1
         with:
           claim: reprocert.yml
           certificate: reprocert-certificate.json
 
       - name: Upload certificate
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: reprocert-certificate
           path: reprocert-certificate.json

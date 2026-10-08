@@ -36,7 +36,7 @@ def run_pytest_adapter(
     ]
 
     raw: dict[str, Any] = {
-        "apiVersion": "reprocert.dev/v1alpha1",
+        "apiVersion": "reprocert.dev/v1",
         "kind": "ReproducibilityClaim",
         "metadata": {
             "id": "pytest-native",

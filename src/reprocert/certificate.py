@@ -5,7 +5,9 @@ from typing import Any
 
 from .util import canonical_json_bytes, sha256_bytes
 
-CERT_API_VERSION = "reprocert.dev/certificate/v1alpha1"
+CERT_API_VERSION = "reprocert.dev/certificate/v1"
+LEGACY_CERT_API_VERSION = "reprocert.dev/certificate/v1alpha1"
+SUPPORTED_CERT_API_VERSIONS = frozenset({CERT_API_VERSION, LEGACY_CERT_API_VERSION})
 CERT_KIND = "ReproCertCertificate"
 CANONICALIZATION = "JSON_SORTED_KEYS_UTF8_V1"
 

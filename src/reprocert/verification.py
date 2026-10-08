@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .certificate import CERT_API_VERSION, CERT_KIND, compute_certificate_digest
+from .certificate import CERT_KIND, SUPPORTED_CERT_API_VERSIONS, compute_certificate_digest
 from .claim import load_claim
 from .util import sha256_file
 
@@ -14,7 +14,10 @@ def load_certificate(path: str | Path) -> dict[str, Any]:
     raw = json.loads(certificate_path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         raise ValueError("Certificate root must be an object")
-    if raw.get("apiVersion") != CERT_API_VERSION or raw.get("kind") != CERT_KIND:
+    if (
+        raw.get("apiVersion") not in SUPPORTED_CERT_API_VERSIONS
+        or raw.get("kind") != CERT_KIND
+    ):
         raise ValueError("Unsupported certificate format")
     return raw
 
