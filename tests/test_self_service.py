@@ -42,8 +42,10 @@ def test_init_can_generate_github_actions_workflow(tmp_path: Path) -> None:
     workflow = (
         tmp_path / ".github" / "workflows" / "reprocert.yml"
     ).read_text(encoding="utf-8")
-    assert "AETHERXGLOBAL/reprocert@v0.2" in workflow
+    assert "AETHERXGLOBAL/reprocert@v1" in workflow
     assert "claim: reprocert.yml" in workflow
+    claim = (tmp_path / "reprocert.yml").read_text(encoding="utf-8")
+    assert "apiVersion: reprocert.dev/v1" in claim
 
 
 def test_init_refuses_overwrite_without_force(tmp_path: Path) -> None:
