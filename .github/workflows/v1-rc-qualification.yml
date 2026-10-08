@@ -37,8 +37,8 @@ jobs:
           set -euo pipefail
           python -m pip install 'build>=1.2,<2'
           python -m build
-          test -n "$(find dist -maxdepth 1 -name 'aetherx_reprocert-1.0.0rc1-*.whl' -print -quit)"
-          test -f dist/aetherx_reprocert-1.0.0rc1.tar.gz
+          test -n "$(find dist -maxdepth 1 -name 'aetherx_reprocert-1.0.0-*.whl' -print -quit)"
+          test -f dist/aetherx_reprocert-1.0.0.tar.gz
       - name: Upload RC distributions
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -70,10 +70,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          wheel="$(find dist -maxdepth 1 -name 'aetherx_reprocert-1.0.0rc1-*.whl' -print -quit)"
+          wheel="$(find dist -maxdepth 1 -name 'aetherx_reprocert-1.0.0-*.whl' -print -quit)"
           test -n "$wheel"
           python -m pip install "$wheel"
-          test "$(reprocert --version | tr -d '\r')" = "reprocert 1.0.0rc1"
+          test "$(reprocert --version | tr -d '\r')" = "reprocert 1.0.0"
           mkdir consumer
           cd consumer
           reprocert init command --github-actions
@@ -92,7 +92,7 @@ jobs:
           from pathlib import Path
           cert = json.loads(Path("certificate.json").read_text(encoding="utf-8"))
           assert cert["apiVersion"] == "reprocert.dev/certificate/v1"
-          assert cert["metadata"]["tool_version"] == "1.0.0rc1"
+          assert cert["metadata"]["tool_version"] == "1.0.0"
           assert cert["verdict"] == "PASS"
           PY
 
@@ -189,7 +189,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          wheel="$(find dist -maxdepth 1 -name 'aetherx_reprocert-1.0.0rc1-*.whl' -print -quit)"
+          wheel="$(find dist -maxdepth 1 -name 'aetherx_reprocert-1.0.0-*.whl' -print -quit)"
           python -m pip install "$wheel"
           reprocert verify compat/legacy-certificate.json --claim compat/legacy-claim.yml --evidence-root compat
           sha256sum -c compat/before.sha256
@@ -202,7 +202,7 @@ jobs:
           assert old["apiVersion"] == "reprocert.dev/certificate/v1alpha1"
           assert new["apiVersion"] == "reprocert.dev/certificate/v1"
           assert old["claim"]["sha256"] == new["claim"]["sha256"]
-          assert new["metadata"]["tool_version"] == "1.0.0rc1"
+          assert new["metadata"]["tool_version"] == "1.0.0"
           assert new["verdict"] == "PASS"
           PY
 
@@ -225,7 +225,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          wheel="$(find dist -maxdepth 1 -name 'aetherx_reprocert-1.0.0rc1-*.whl' -print -quit)"
+          wheel="$(find dist -maxdepth 1 -name 'aetherx_reprocert-1.0.0-*.whl' -print -quit)"
           python -m pip install "$wheel"
       - name: Run deterministic PASS/FAIL repetitions
         shell: bash
