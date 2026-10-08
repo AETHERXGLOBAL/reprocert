@@ -70,3 +70,8 @@ A GREEN run on the exact pre-publication `main` HEAD permits the release transac
 Decision states:
 - `V1_G8_FINAL_SOURCE_GATE_PASS`
 - `V1_G8_FINAL_SOURCE_REWORK_REQUIRED`
+
+
+## Bootstrap note
+
+The workflow was introduced on the same merge that first placed it on `main`. The first authoritative exact-main evidence must therefore come from a subsequent protected merge after the workflow already exists on the default branch. This note intentionally creates that bootstrap transition; publication remains blocked until the resulting push run is GREEN.
