@@ -27,13 +27,13 @@ jobs:
 
     steps:
       - name: Checkout ReproCert integration fixture
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           path: reprocert-source
           persist-credentials: false
 
       - name: Checkout pinned pytest-django-queries
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: NyanKiyoshi/pytest-django-queries
           ref: d9ef71f281db2498c614986c5dbacd2592923f54
