@@ -2,6 +2,27 @@
 
 The roadmap is directional, not a promise of release dates.
 
+## v1.0 — Stable productization
+
+Active under Issue #27.
+
+Required before release:
+
+- [x] deep productization gap analysis;
+- [ ] stable contract freeze accepted by CI;
+- [ ] stable v1 document identities with Alpha reader compatibility;
+- [ ] exact published Alpha -> v1 certificate verification replay;
+- [ ] full source matrix on Linux / Windows / macOS and Python 3.11–3.14;
+- [ ] destruction round A;
+- [ ] stable release-control and `@v1` channel plan;
+- [ ] RC zero-contact/productization qualification;
+- [ ] destruction round B;
+- [ ] exact-source final review;
+- [ ] explicit `v1.0.0` release decision.
+
+Scope rule: v1.0 is a **contract-stabilization release**, not a feature-expansion release.
+
+
 ## v0.1 — Claim-to-evidence core
 
 Completed baseline:
