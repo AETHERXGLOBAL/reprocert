@@ -1,0 +1,74 @@
+name: ReproCert v1 Release Readiness
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/release.yml'
+      - '.github/workflows/v1-release-readiness.yml'
+      - 'tests/test_v1_release_control.py'
+      - 'docs/V1_RELEASE_CONTROL_PROTOCOL.md'
+      - 'pyproject.toml'
+      - 'action.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-control:
+    name: Stable release control plane
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+
+      - name: Install test dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Verify release-control contract
+        run: pytest tests/test_v1_release_control.py tests/test_release_workflow.py
+
+      - name: Prove stable-v1 public identities are not armed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code origin refs/heads/v1 >/dev/null 2>&1; then
+            echo "public v1 branch exists before release authorization" >&2
+            exit 1
+          fi
+          if git ls-remote --exit-code origin refs/tags/v1.0.0 >/dev/null 2>&1; then
+            echo "public v1.0.0 tag exists before release authorization" >&2
+            exit 1
+          fi
+          python - <<'PY'
+          import json
+          import urllib.error
+          import urllib.request
+
+          release_url = "https://api.github.com/repos/AETHERXGLOBAL/reprocert/releases/tags/v1.0.0"
+          try:
+              urllib.request.urlopen(release_url, timeout=15)
+          except urllib.error.HTTPError as exc:
+              if exc.code != 404:
+                  raise
+          else:
+              raise SystemExit("public v1.0.0 GitHub Release exists before authorization")
+
+          for branch in ("main", "v0.2"):
+              with urllib.request.urlopen(
+                  f"https://api.github.com/repos/AETHERXGLOBAL/reprocert/branches/{branch}",
+                  timeout=15,
+              ) as response:
+                  payload = json.load(response)
+              assert payload["protected"] is True, (branch, payload["protected"])
+          print("pre-release public identity and existing governance checks: PASS")
+          PY
