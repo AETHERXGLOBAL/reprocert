@@ -10,7 +10,9 @@ import yaml
 from .container import ContainerProfileError, validate_container_profile
 from .util import canonical_json_bytes, sha256_bytes
 
-CLAIM_API_VERSION = "reprocert.dev/v1alpha1"
+CLAIM_API_VERSION = "reprocert.dev/v1"
+LEGACY_CLAIM_API_VERSION = "reprocert.dev/v1alpha1"
+SUPPORTED_CLAIM_API_VERSIONS = frozenset({CLAIM_API_VERSION, LEGACY_CLAIM_API_VERSION})
 CLAIM_KIND = "ReproducibilityClaim"
 JUNIT_METRICS = {"tests", "failures", "errors", "skipped", "passed", "time_seconds"}
 
@@ -64,8 +66,9 @@ def load_claim(path: str | Path) -> Claim:
 
 
 def validate_claim(raw: dict[str, Any]) -> None:
-    if raw.get("apiVersion") != CLAIM_API_VERSION:
-        raise ClaimError(f"apiVersion must be {CLAIM_API_VERSION!r}")
+    if raw.get("apiVersion") not in SUPPORTED_CLAIM_API_VERSIONS:
+        supported = ", ".join(sorted(SUPPORTED_CLAIM_API_VERSIONS))
+        raise ClaimError(f"apiVersion must be one of: {supported}")
     if raw.get("kind") != CLAIM_KIND:
         raise ClaimError(f"kind must be {CLAIM_KIND!r}")
 
