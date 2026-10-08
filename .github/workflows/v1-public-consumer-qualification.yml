@@ -1,0 +1,134 @@
+name: ReproCert v1 Public Consumer Qualification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/v1-public-consumer-qualification.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-pypi-matrix:
+    name: Public PyPI / ${{ matrix.os }} / Python ${{ matrix.python }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest, macos-latest]
+        python: ['3.11', '3.12', '3.13', '3.14']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install exact publicly published v1 release
+        run: python -m pip install --disable-pip-version-check --no-cache-dir "aetherx-reprocert==1.0.0"
+
+      - name: Assert installed distribution identity
+        shell: python
+        run: |
+          import importlib.metadata
+          import reprocert
+
+          assert importlib.metadata.version("aetherx-reprocert") == "1.0.0"
+          assert reprocert.__version__ == "1.0.0"
+
+      - name: Zero-contact public-package consumer and tamper rejection
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(reprocert --version | tr -d '\r')" = "reprocert 1.0.0"
+          mkdir public-consumer
+          cd public-consumer
+          reprocert init command --github-actions
+          reprocert doctor
+          reprocert run reprocert.yml --output certificate.json
+          reprocert verify certificate.json --claim reprocert.yml --evidence-root .
+          reprocert inspect certificate.json --json > inspect.json
+          python - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+
+          cert = json.loads(Path("certificate.json").read_text(encoding="utf-8"))
+          assert cert["apiVersion"] == "reprocert.dev/certificate/v1"
+          assert cert["metadata"]["tool_version"] == "1.0.0"
+          assert cert["verdict"] == "PASS"
+          generated = Path(".github/workflows/reprocert.yml").read_text(encoding="utf-8")
+          assert "AETHERXGLOBAL/reprocert@v1" in generated
+          assert "AETHERXGLOBAL/reprocert@v0.2" not in generated
+
+          tampered = dict(cert)
+          tampered["verdict"] = "FAIL"
+          Path("tampered.json").write_text(json.dumps(tampered), encoding="utf-8")
+          result = subprocess.run(
+              ["reprocert", "verify", "tampered.json", "--claim", "reprocert.yml", "--evidence-root", "."],
+              check=False,
+          )
+          assert result.returncode != 0, "Tampered public artifact was incorrectly accepted"
+          print("PUBLIC_PYPI_CONSUMER_AND_TAMPER_REJECTION_PASS")
+          PY
+
+  public-v1-action:
+    name: Public GitHub Action @v1 consumer
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout public consumer fixture
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Resolve public stable v1 Action
+        id: reprocert
+        uses: AETHERXGLOBAL/reprocert@v1
+        with:
+          claim: examples/basic/claim.yml
+          certificate: v1-public-action-certificate.json
+          python-version: '3.13'
+
+      - name: Assert public Action outputs and certificate semantics
+        shell: python
+        env:
+          ACTION_VERDICT: ${{ steps.reprocert.outputs.verdict }}
+          ACTION_CERTIFICATE: ${{ steps.reprocert.outputs.certificate }}
+          ACTION_DIGEST: ${{ steps.reprocert.outputs.certificate-digest }}
+        run: |
+          import json
+          import os
+          from pathlib import Path
+
+          assert os.environ["ACTION_VERDICT"] == "PASS"
+          assert os.environ["ACTION_CERTIFICATE"] == "v1-public-action-certificate.json"
+          cert = json.loads(Path(os.environ["ACTION_CERTIFICATE"]).read_text(encoding="utf-8"))
+          assert cert["apiVersion"] == "reprocert.dev/certificate/v1"
+          assert cert["metadata"]["tool_version"] == "1.0.0"
+          assert cert["verdict"] == "PASS"
+          assert cert["integrity"]["certificate_sha256"] == os.environ["ACTION_DIGEST"]
+          print("PUBLIC_GITHUB_ACTION_V1_PASS")
+
+  initial-stable-channel-source:
+    name: Public v1 channel points at exact initial stable release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Verify public v1 and v1.0.0 source refs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git ls-remote --exit-code https://github.com/AETHERXGLOBAL/reprocert.git \
+            refs/heads/v1 refs/tags/v1.0.0 > public-refs.txt
+          python - <<'PY'
+          from pathlib import Path
+
+          refs = {ref: sha for sha, ref in (line.split() for line in Path("public-refs.txt").read_text().splitlines())}
+          required = "1b471deafc747909fb419a05048546bc74bd4c29"
+          assert refs.get("refs/heads/v1") == required, refs
+          assert refs.get("refs/tags/v1.0.0") == required, refs
+          print("PUBLIC_V1_INITIAL_RELEASE_SOURCE_BINDING_PASS")
+          PY
