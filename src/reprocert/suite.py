@@ -13,7 +13,9 @@ from .claim import ClaimError, load_claim
 from .runner import run_claim
 from .util import canonical_json_bytes, sha256_bytes
 
-SUITE_API_VERSION = "reprocert.dev/suite/v1alpha1"
+SUITE_API_VERSION = "reprocert.dev/suite/v1"
+LEGACY_SUITE_API_VERSION = "reprocert.dev/suite/v1alpha1"
+SUPPORTED_SUITE_API_VERSIONS = frozenset({SUITE_API_VERSION, LEGACY_SUITE_API_VERSION})
 SUITE_KIND = "ReproCertSuite"
 
 
@@ -58,8 +60,9 @@ def load_suite(path: str | Path) -> Suite:
 
 
 def validate_suite(raw: dict[str, Any]) -> None:
-    if raw.get("apiVersion") != SUITE_API_VERSION:
-        raise SuiteError(f"apiVersion must be {SUITE_API_VERSION!r}")
+    if raw.get("apiVersion") not in SUPPORTED_SUITE_API_VERSIONS:
+        supported = ", ".join(sorted(SUPPORTED_SUITE_API_VERSIONS))
+        raise SuiteError(f"apiVersion must be one of: {supported}")
     if raw.get("kind") != SUITE_KIND:
         raise SuiteError(f"kind must be {SUITE_KIND!r}")
 
@@ -111,7 +114,7 @@ def run_suite(suite: Suite) -> tuple[dict[str, Any], list[tuple[str, dict[str, A
 
     verdict = _aggregate_verdict([entry["verdict"] for entry in entries])
     report: dict[str, Any] = {
-        "apiVersion": "reprocert.dev/suite-report/v1alpha1",
+        "apiVersion": "reprocert.dev/suite-report/v1",
         "kind": "ReproCertSuiteReport",
         "metadata": {
             "suite_id": suite.suite_id,
