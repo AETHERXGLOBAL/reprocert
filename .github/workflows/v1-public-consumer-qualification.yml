@@ -126,7 +126,7 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          refs = dict(line.split() for line in Path("public-refs.txt").read_text().splitlines())
+          refs = {ref: sha for sha, ref in (line.split() for line in Path("public-refs.txt").read_text().splitlines())}
           required = "1b471deafc747909fb419a05048546bc74bd4c29"
           assert refs.get("refs/heads/v1") == required, refs
           assert refs.get("refs/tags/v1.0.0") == required, refs
