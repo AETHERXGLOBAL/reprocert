@@ -1,0 +1,333 @@
+name: ReproCert v1 RC Qualification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'schemas/**'
+      - 'docs/V1_RC_QUALIFICATION_PROTOCOL.md'
+      - 'docs/COMPATIBILITY.md'
+      - 'pyproject.toml'
+      - 'action.yml'
+      - '.github/workflows/v1-rc-qualification.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build exact RC distributions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+      - name: Build isolated distributions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install 'build>=1.2,<2'
+          python -m build
+          test -n "$(find dist -maxdepth 1 -name 'aetherx_reprocert-1.0.0rc1-*.whl' -print -quit)"
+          test -f dist/aetherx_reprocert-1.0.0rc1.tar.gz
+      - name: Upload RC distributions
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: v1-rc-distributions
+          path: dist/*
+          if-no-files-found: error
+
+  built-consumer:
+    name: Wheel consumer / ${{ matrix.os }} / Python ${{ matrix.python }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest, macos-latest]
+        python: ['3.11', '3.14']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Download exact RC distributions
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: v1-rc-distributions
+          path: dist
+      - name: Install wheel and run zero-contact path
+        shell: bash
+        run: |
+          set -euo pipefail
+          wheel="$(find dist -maxdepth 1 -name 'aetherx_reprocert-1.0.0rc1-*.whl' -print -quit)"
+          test -n "$wheel"
+          python -m pip install "$wheel"
+          test "$(reprocert --version | tr -d '\r')" = "reprocert 1.0.0rc1"
+          mkdir consumer
+          cd consumer
+          reprocert init command --github-actions
+          grep -F 'apiVersion: reprocert.dev/v1' reprocert.yml
+          grep -F 'AETHERXGLOBAL/reprocert@v1' .github/workflows/reprocert.yml
+          if grep -F 'AETHERXGLOBAL/reprocert@v0.2' .github/workflows/reprocert.yml; then
+            echo "stale Alpha Action channel emitted by RC" >&2
+            exit 1
+          fi
+          reprocert doctor
+          reprocert run reprocert.yml -o certificate.json
+          reprocert verify certificate.json --claim reprocert.yml --evidence-root .
+          reprocert inspect certificate.json --json > inspect.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          cert = json.loads(Path("certificate.json").read_text(encoding="utf-8"))
+          assert cert["apiVersion"] == "reprocert.dev/certificate/v1"
+          assert cert["metadata"]["tool_version"] == "1.0.0rc1"
+          assert cert["verdict"] == "PASS"
+          PY
+
+  local-action-consumer:
+    name: Local Action consumer / no public v1
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Create stable-v1 claim
+        shell: bash
+        run: |
+          cat > rc-action-claim.yml <<'YAML'
+          apiVersion: reprocert.dev/v1
+          kind: ReproducibilityClaim
+          metadata:
+            id: rc-action-consumer
+          spec:
+            command: [python, -c, "print('rc-action-pass')"]
+            checks:
+              - id: marker
+                source: {type: stdout}
+                op: contains
+                expected: rc-action-pass
+          YAML
+      - name: Consume candidate Action locally
+        id: repro
+        uses: ./
+        with:
+          claim: rc-action-claim.yml
+          certificate: rc-action-certificate.json
+          python-version: '3.13'
+      - name: Verify Action outputs
+        shell: bash
+        env:
+          VERDICT: ${{ steps.repro.outputs.verdict }}
+          DIGEST: ${{ steps.repro.outputs.certificate-digest }}
+        run: |
+          set -euo pipefail
+          test "$VERDICT" = "PASS"
+          test -n "$DIGEST"
+          test -f rc-action-certificate.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          cert = json.loads(Path("rc-action-certificate.json").read_text(encoding="utf-8"))
+          assert cert["apiVersion"] == "reprocert.dev/certificate/v1"
+          assert cert["verdict"] == "PASS"
+          PY
+
+  alpha-to-built-rc:
+    name: Published Alpha -> built RC compatibility
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+      - name: Download exact RC distributions
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: v1-rc-distributions
+          path: dist
+      - name: Generate immutable legacy evidence with published Alpha
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv alpha-env
+          alpha-env/bin/python -m pip install --disable-pip-version-check --no-cache-dir "aetherx-reprocert==0.2.2a1"
+          mkdir compat
+          cat > compat/legacy-claim.yml <<'YAML'
+          apiVersion: reprocert.dev/v1alpha1
+          kind: ReproducibilityClaim
+          metadata:
+            id: rc-legacy-compat
+          spec:
+            command: [python, -c, "from pathlib import Path; Path('evidence.txt').write_text('legacy', encoding='utf-8')"]
+            evidence: [evidence.txt]
+            checks:
+              - id: evidence
+                source: {type: text, path: evidence.txt}
+                op: eq
+                expected: legacy
+          YAML
+          alpha-env/bin/reprocert run compat/legacy-claim.yml -o compat/legacy-certificate.json
+          alpha-env/bin/reprocert verify compat/legacy-certificate.json --claim compat/legacy-claim.yml --evidence-root compat
+          sha256sum compat/legacy-claim.yml compat/legacy-certificate.json > compat/before.sha256
+      - name: Install built RC and verify legacy evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          wheel="$(find dist -maxdepth 1 -name 'aetherx_reprocert-1.0.0rc1-*.whl' -print -quit)"
+          python -m pip install "$wheel"
+          reprocert verify compat/legacy-certificate.json --claim compat/legacy-claim.yml --evidence-root compat
+          sha256sum -c compat/before.sha256
+          reprocert run compat/legacy-claim.yml -o compat/rc-certificate.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          old = json.loads(Path("compat/legacy-certificate.json").read_text())
+          new = json.loads(Path("compat/rc-certificate.json").read_text())
+          assert old["apiVersion"] == "reprocert.dev/certificate/v1alpha1"
+          assert new["apiVersion"] == "reprocert.dev/certificate/v1"
+          assert old["claim"]["sha256"] == new["claim"]["sha256"]
+          assert new["metadata"]["tool_version"] == "1.0.0rc1"
+          assert new["verdict"] == "PASS"
+          PY
+
+  repeated-stability:
+    name: Built RC repeated-run stability
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+      - name: Download exact RC distributions
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: v1-rc-distributions
+          path: dist
+      - name: Install exact RC wheel
+        shell: bash
+        run: |
+          set -euo pipefail
+          wheel="$(find dist -maxdepth 1 -name 'aetherx_reprocert-1.0.0rc1-*.whl' -print -quit)"
+          python -m pip install "$wheel"
+      - name: Run deterministic PASS/FAIL repetitions
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir stability
+          cat > stability/pass.yml <<'YAML'
+          apiVersion: reprocert.dev/v1
+          kind: ReproducibilityClaim
+          metadata: {id: rc-pass-stability}
+          spec:
+            command: [python, -c, "print('stable')"]
+            checks:
+              - id: marker
+                source: {type: stdout}
+                op: contains
+                expected: stable
+          YAML
+          cat > stability/fail.yml <<'YAML'
+          apiVersion: reprocert.dev/v1
+          kind: ReproducibilityClaim
+          metadata: {id: rc-fail-stability}
+          spec:
+            command: [python, -c, "print('stable')"]
+            checks:
+              - id: marker
+                source: {type: stdout}
+                op: eq
+                expected: intentionally-different
+          YAML
+
+          for i in $(seq 1 100); do
+            reprocert run stability/pass.yml -o "stability/pass-$i.json"
+            reprocert verify "stability/pass-$i.json" --claim stability/pass.yml
+            python - "$i" <<'PY'
+          import json, sys
+          from pathlib import Path
+          cert = json.loads(Path(f"stability/pass-{sys.argv[1]}.json").read_text())
+          assert cert["verdict"] == "PASS"
+          PY
+          done
+
+          for i in $(seq 1 50); do
+            set +e
+            reprocert run stability/fail.yml -o "stability/fail-$i.json"
+            rc=$?
+            set -e
+            test "$rc" -eq 1
+            reprocert verify "stability/fail-$i.json" --claim stability/fail.yml
+            python - "$i" <<'PY'
+          import json, sys
+          from pathlib import Path
+          cert = json.loads(Path(f"stability/fail-{sys.argv[1]}.json").read_text())
+          assert cert["verdict"] == "FAIL"
+          PY
+          done
+
+  no-public-side-effects:
+    name: Pre-release public identity remains absent
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Assert no stable-v1 publication side effects
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code origin refs/heads/v1 >/dev/null 2>&1; then
+            echo "public v1 branch exists before authorization" >&2
+            exit 1
+          fi
+          if git ls-remote --exit-code origin refs/tags/v1.0.0 >/dev/null 2>&1; then
+            echo "public v1.0.0 tag exists before authorization" >&2
+            exit 1
+          fi
+          python - <<'PY'
+          import json
+          import urllib.error
+          import urllib.request
+
+          urls = {
+              "GitHub Release": "https://api.github.com/repos/AETHERXGLOBAL/reprocert/releases/tags/v1.0.0",
+              "PyPI 1.0.0": "https://pypi.org/pypi/aetherx-reprocert/1.0.0/json",
+          }
+          for name, url in urls.items():
+              try:
+                  urllib.request.urlopen(url, timeout=15)
+              except urllib.error.HTTPError as exc:
+                  if exc.code != 404:
+                      raise
+              else:
+                  raise SystemExit(f"{name} exists before authorization")
+
+          for branch in ("main", "v0.2"):
+              with urllib.request.urlopen(
+                  f"https://api.github.com/repos/AETHERXGLOBAL/reprocert/branches/{branch}",
+                  timeout=15,
+              ) as response:
+                  payload = json.load(response)
+              assert payload["protected"] is True, (branch, payload["protected"])
+          print("no stable-v1 publication side effects: PASS")
+          PY
