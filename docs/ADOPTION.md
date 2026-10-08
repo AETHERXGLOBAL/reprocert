@@ -2,6 +2,12 @@
 
 ReproCert is intended to be used as an independent developer tool across repositories, not only inside its own test suite.
 
+## Current stable v1.0.0 adoption boundary
+
+The publicly published `aetherx-reprocert==1.0.0` and protected `AETHERXGLOBAL/reprocert@v1` were qualified by [14/14 internal-controlled public consumer jobs](https://github.com/AETHERXGLOBAL/reprocert/actions/runs/37846420495) on the tested OS/Python matrix. Those tests demonstrate actual published-distribution consumption, **not** independent external adoption. The historical first cross-repository example documented below was produced inside AETHER X before stable v1 and must not be re-labelled as an independent v1 pilot.
+
+For actual unrelated external repositories and first-run/failure evidence, use the [independent integration tracker #17](https://github.com/AETHERXGLOBAL/reprocert/issues/17); no trial is counted until an externally controlled workload and attributable evidence can be audited.
+
 ## First cross-repository consumer integration
 
 The first verified cross-repository consumer is:
