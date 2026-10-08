@@ -1,0 +1,145 @@
+name: ReproCert v1 Destruction B
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/test_v1_destruction_b.py'
+      - 'docs/V1_DESTRUCTION_B_PROTOCOL.md'
+      - 'docs/COMPATIBILITY.md'
+      - 'pyproject.toml'
+      - 'action.yml'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/v1-destruction-b.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cross-version-destruction:
+    name: Cross-version semantic destruction
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+      - name: Install candidate
+        run: python -m pip install -e ".[dev]"
+      - name: Execute Round B transition attacks
+        run: pytest -q tests/test_v1_destruction_b.py tests/test_v1_destruction.py tests/test_v1_contract.py tests/test_v1_release_control.py
+
+  rollback-negative-boundary:
+    name: Published Alpha cannot imply stable-v1 reader support
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+      - name: Produce stable-v1 certificate with RC
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install -e .
+          mkdir rollback
+          cat > rollback/stable.yml <<'YAML'
+          apiVersion: reprocert.dev/v1
+          kind: ReproducibilityClaim
+          metadata: {id: rollback-boundary}
+          spec:
+            command: [python, -c, "print('stable-v1')"]
+            checks:
+              - id: marker
+                source: {type: stdout}
+                op: contains
+                expected: stable-v1
+          YAML
+          reprocert run rollback/stable.yml -o rollback/stable-certificate.json
+          reprocert verify rollback/stable-certificate.json --claim rollback/stable.yml
+      - name: Prove exact Alpha reader does not create a bidirectional compatibility claim
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv alpha-env
+          alpha-env/bin/python -m pip install --disable-pip-version-check --no-cache-dir "aetherx-reprocert==0.2.2a1"
+          set +e
+          alpha-env/bin/reprocert verify rollback/stable-certificate.json --claim rollback/stable.yml
+          rc=$?
+          set -e
+          test "$rc" -ne 0
+          echo "rollback boundary retained: Alpha reader does not accept stable-v1 artifact"
+
+  release-boundary-live:
+    name: Live release/channel/governance destruction
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Attack premature release/channel state
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code origin refs/heads/v1 >/dev/null 2>&1; then
+            echo "premature public v1 branch" >&2
+            exit 1
+          fi
+          if git ls-remote --exit-code origin refs/tags/v1.0.0 >/dev/null 2>&1; then
+            echo "premature public v1.0.0 tag" >&2
+            exit 1
+          fi
+          python - <<'PY'
+          import json
+          import urllib.error
+          import urllib.request
+
+          absent = {
+              "GitHub Release v1.0.0": "https://api.github.com/repos/AETHERXGLOBAL/reprocert/releases/tags/v1.0.0",
+              "PyPI 1.0.0": "https://pypi.org/pypi/aetherx-reprocert/1.0.0/json",
+          }
+          for label, url in absent.items():
+              try:
+                  urllib.request.urlopen(url, timeout=15)
+              except urllib.error.HTTPError as exc:
+                  if exc.code != 404:
+                      raise
+              else:
+                  raise SystemExit(f"{label} exists before release authorization")
+
+          for branch in ("main", "v0.2"):
+              with urllib.request.urlopen(
+                  f"https://api.github.com/repos/AETHERXGLOBAL/reprocert/branches/{branch}",
+                  timeout=15,
+              ) as response:
+                  payload = json.load(response)
+              assert payload["protected"] is True, (branch, payload["protected"])
+
+          with urllib.request.urlopen(
+              "https://api.github.com/repos/AETHERXGLOBAL/reprocert/rulesets",
+              timeout=15,
+          ) as response:
+              rulesets = json.load(response)
+          exact = [
+              item for item in rulesets
+              if item.get("name") == "Protect release v0.2.2a1"
+              and item.get("target") == "tag"
+              and item.get("enforcement") == "active"
+          ]
+          assert exact, rulesets
+          print("live release/channel/governance destruction: PASS")
+          PY
