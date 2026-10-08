@@ -3,7 +3,7 @@
 ## Self-service local CLI
 
 ```bash
-python -m pip install "git+https://github.com/AETHERXGLOBAL/reprocert.git@v0.2"
+python -m pip install "git+https://github.com/AETHERXGLOBAL/reprocert.git@v1"
 reprocert init --github-actions
 reprocert doctor
 reprocert run reprocert.yml -o certificate.json
@@ -44,7 +44,7 @@ permissions:
 steps:
   - uses: actions/checkout@v7
 
-  - uses: AETHERXGLOBAL/reprocert@v0.2
+  - uses: AETHERXGLOBAL/reprocert@v1
     id: reprocert
     with:
       claim: path/to/claim.yml
