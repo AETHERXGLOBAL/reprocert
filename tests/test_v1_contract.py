@@ -31,7 +31,7 @@ spec:
   command: [python, -c, "print('ok')"]
   checks:
     - id: marker
-      source: {type: stdout}
+      source: {{type: stdout}}
       op: contains
       expected: ok
 """
