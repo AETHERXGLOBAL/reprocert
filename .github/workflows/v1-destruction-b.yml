@@ -1,0 +1,120 @@
+name: ReproCert v1 Destruction B
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/v1-destruction-b.yml'
+      - '.github/workflows/release.yml'
+      - 'docs/V1_DESTRUCTION_B_PROTOCOL.md'
+      - 'docs/COMPATIBILITY.md'
+      - 'pyproject.toml'
+      - 'src/**'
+      - 'tests/**'
+      - 'action.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cross-version-release-control:
+    name: Cross-version / release-control adversarial corpus
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+
+      - name: Prove public stable-v1 identities remain unarmed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code origin refs/heads/v1 >/dev/null 2>&1; then
+            echo "unexpected public v1 branch before release authorization" >&2
+            exit 1
+          fi
+          if git ls-remote --exit-code origin refs/tags/v1.0.0 >/dev/null 2>&1; then
+            echo "unexpected public v1.0.0 tag before release authorization" >&2
+            exit 1
+          fi
+          python - <<'PY'
+          import urllib.error, urllib.request
+          url = "https://api.github.com/repos/AETHERXGLOBAL/reprocert/releases/tags/v1.0.0"
+          try:
+              urllib.request.urlopen(url, timeout=15)
+          except urllib.error.HTTPError as exc:
+              if exc.code != 404:
+                  raise
+          else:
+              raise SystemExit("unexpected public v1.0.0 GitHub Release before authorization")
+          PY
+
+      - name: Install exact published Alpha and v1 candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv alpha-env
+          alpha-env/bin/python -m pip install --disable-pip-version-check --no-cache-dir "aetherx-reprocert==0.2.2a1"
+          python -m venv v1-env
+          v1-env/bin/python -m pip install --disable-pip-version-check -e .
+
+      - name: Stable-v1 artifact must not be silently accepted by Alpha
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir cross-version
+          cat > cross-version/stable.yml <<'YAML'
+          apiVersion: reprocert.dev/v1
+          kind: ReproducibilityClaim
+          metadata: {id: stable-only}
+          spec:
+            command: [python, -c, "print('stable')"]
+            checks:
+              - id: marker
+                source: {type: stdout}
+                op: contains
+                expected: stable
+          YAML
+          v1-env/bin/reprocert run cross-version/stable.yml -o cross-version/stable.json
+          sha256sum cross-version/stable.yml cross-version/stable.json > cross-version/before.sha256
+          set +e
+          alpha-env/bin/reprocert verify cross-version/stable.json --claim cross-version/stable.yml >cross-version/alpha.out 2>cross-version/alpha.err
+          rc=$?
+          set -e
+          test "$rc" -ne 0
+          sha256sum -c cross-version/before.sha256
+
+      - name: Stable generator must never fall back to Alpha channel or Alpha wire identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir generated
+          cd generated
+          ../v1-env/bin/reprocert init command --github-actions
+          grep -F 'apiVersion: reprocert.dev/v1' reprocert.yml
+          grep -F 'AETHERXGLOBAL/reprocert@v1' .github/workflows/reprocert.yml
+          if grep -F 'v1alpha1' reprocert.yml; then
+            echo "stable generator downgraded wire identity" >&2
+            exit 1
+          fi
+          if grep -F 'AETHERXGLOBAL/reprocert@v0.2' .github/workflows/reprocert.yml; then
+            echo "stable generator downgraded Action channel" >&2
+            exit 1
+          fi
+
+      - name: Release control must bind tag, version and current main
+        run: pytest tests/test_v1_release_control.py tests/test_release_workflow.py
+
+      - name: Re-run destruction A and stable contract corpus
+        run: |
+          v1-env/bin/python -m pip install -e ".[dev]"
+          v1-env/bin/python -m pytest tests/test_v1_destruction.py tests/test_v1_contract.py
