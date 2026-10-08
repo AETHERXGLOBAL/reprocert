@@ -4,9 +4,9 @@ The roadmap is directional, not a promise of release dates.
 
 ## v1.0 — Stable productization
 
-Active under Issue #27.
+Stable `v1.0.0` published and qualified under Issue #27.
 
-Required before release:
+Completed release gates:
 
 - [x] deep productization gap analysis;
 - [x] stable contract freeze accepted by CI;
@@ -18,11 +18,18 @@ Required before release:
 - [x] RC zero-contact/productization qualification;
 - [x] destruction round B;
 - [x] exact-source final review;
-- [ ] immutable `v1.*` tag governance verified;
-- [ ] final `1.0.0` source identity merged and requalified;
-- [ ] explicit `v1.0.0` release transaction completed.
+- [x] immutable `v1.*` tag governance verified;
+- [x] final `1.0.0` source identity merged and requalified;
+- [x] explicit `v1.0.0` release transaction completed.
+- [x] exact public PyPI `aetherx-reprocert==1.0.0` qualified on 12 OS/Python combinations;
+- [x] real `@v1` Action consumer, channel/tag binding and certificate tamper checks passed;
+- [x] moving `v1` branch protected without bypass and with normal forward movement;
 
 Scope rule: v1.0 is a **contract-stabilization release**, not a feature-expansion release.
+
+Exact release evidence: [Release workflow #37844876488](https://github.com/AETHERXGLOBAL/reprocert/actions/runs/37844876488), [Final Source Gate #37834370993](https://github.com/AETHERXGLOBAL/reprocert/actions/runs/37834370993), and [Public Consumer Qualification #37846420495](https://github.com/AETHERXGLOBAL/reprocert/actions/runs/37846420495).
+
+Next work (not retroactive v1 blockers): external adoption/independent review, evidence-driven adapters and security hardening following explicit new gates.
 
 
 ## v0.1 — Claim-to-evidence core

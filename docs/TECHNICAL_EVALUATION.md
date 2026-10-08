@@ -2,7 +2,7 @@
 
 **Purpose:** give an external engineer one bounded, independently runnable path from public installation to machine-readable evidence in roughly 5–10 minutes.
 
-**Status:** Public Alpha. This evaluation pack does not create an endorsement, certification, production-readiness claim, or independent-adoption claim.
+**Status:** Public Stable v1.0.0 evaluation path. This evaluation pack does not create an endorsement, security certification, universal production-suitability guarantee, or independent-adoption claim.
 
 ## What this evaluation exercises
 
@@ -30,7 +30,7 @@ cd reprocert
 python -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install aetherx-reprocert pytest
+python -m pip install "aetherx-reprocert==1.0.0" pytest
 
 reprocert --help >/dev/null
 ```
@@ -122,7 +122,7 @@ It does **not** establish:
 - third-party adoption;
 - endorsement of AETHER X.
 
-`CERTIFICATE INTEGRITY ≠ PRODUCER AUTHENTICITY ≠ SCIENTIFIC TRUTH`
+`CERTIFICATE INTEGRITY ≠ PRODUCER AUTHENTICITY ≠ EVIDENCE-SOURCE TRUTH ≠ SCIENTIFIC VALIDITY`
 
 `SELF-EVALUATION PASS ≠ INDEPENDENT ADOPTION`
 

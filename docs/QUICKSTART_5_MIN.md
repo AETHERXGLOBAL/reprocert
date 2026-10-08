@@ -1,4 +1,4 @@
-# 5-Minute Start
+# 5-Minute Start — ReproCert v1.0.0 Stable
 
 ReproCert is designed to work without an AETHER X account, API key, hosted service, or approval.
 
@@ -7,13 +7,13 @@ ReproCert is designed to work without an AETHER X account, API key, hosted servi
 Install from PyPI:
 
 ~~~bash
-python -m pip install aetherx-reprocert
+python -m pip install "aetherx-reprocert==1.0.0"
 ~~~
 
-Alternative stable GitHub channel:
+Alternative protected stable v1 GitHub channel:
 
 ~~~bash
-python -m pip install "git+https://github.com/AETHERXGLOBAL/reprocert.git@v0.2"
+python -m pip install "git+https://github.com/AETHERXGLOBAL/reprocert.git@v1"
 ~~~
 
 ## 2. Initialize your project

@@ -1,4 +1,4 @@
-name: PyPI Zero-Contact Consumer Proof
+name: Historical Alpha v0.2.2a1 PyPI Consumer Proof
 
 on:
   pull_request:
@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   pypi-consumer:
-    name: Install from PyPI and complete self-service round-trip
+    name: Install exact historical Alpha and complete self-service round-trip
     runs-on: ubuntu-latest
 
     steps:
@@ -30,7 +30,7 @@ jobs:
 
       - name: Install exactly as documented
         run: |
-          python -m pip install --no-cache-dir aetherx-reprocert
+          python -m pip install --no-cache-dir "aetherx-reprocert==0.2.2a1"
           reprocert --version
           python -m pip show aetherx-reprocert
 

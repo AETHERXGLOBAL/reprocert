@@ -10,7 +10,7 @@
   <a href="https://github.com/AETHERXGLOBAL/reprocert/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/AETHERXGLOBAL/reprocert/actions/workflows/ci.yml/badge.svg"></a>
   <a href="./LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/License-Apache--2.0-blue.svg"></a>
   <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-blue.svg">
-  <img alt="Status: Final Supported Alpha" src="https://img.shields.io/badge/Status-Final%20Supported%20Alpha-brightgreen.svg">
+  <img alt="Status: Stable v1.0.0" src="https://img.shields.io/badge/Status-Stable%20v1.0.0-brightgreen.svg">
   <a href="https://pypi.org/project/aetherx-reprocert/"><img alt="PyPI" src="https://img.shields.io/pypi/v/aetherx-reprocert.svg"></a>
 </p>
 
@@ -56,7 +56,7 @@ you define the claim, command, evidence files and acceptance conditions. ReproCe
 
 ReproCert is intentionally narrow. It does **not** claim that a benchmark is unbiased, a scientific hypothesis is true, or software is secure merely because a certificate passes.
 
-`CERTIFICATE INTEGRITY ≠ PRODUCER AUTHENTICITY ≠ SCIENTIFIC TRUTH`
+`CERTIFICATE INTEGRITY ≠ PRODUCER AUTHENTICITY ≠ EVIDENCE-SOURCE TRUTH ≠ SCIENTIFIC VALIDITY`
 
 ## Quickstart — self-service
 
@@ -65,13 +65,13 @@ No AETHER X account, API key, hosted service, or approval is required.
 Install from PyPI:
 
 ```bash
-python -m pip install aetherx-reprocert
+python -m pip install "aetherx-reprocert==1.0.0"
 ```
 
-The stable GitHub v0.2 channel remains available as an alternative:
+The stable GitHub v1 channel is available as an alternative:
 
 ```bash
-python -m pip install "git+https://github.com/AETHERXGLOBAL/reprocert.git@v0.2"
+python -m pip install "git+https://github.com/AETHERXGLOBAL/reprocert.git@v1"
 ```
 
 Initialize a pytest project and generate a GitHub Actions workflow:
@@ -152,7 +152,7 @@ You can also read the public adopter call in [Issue #7](https://github.com/AETHE
 ## Example claim
 
 ```yaml
-apiVersion: reprocert.dev/v1alpha1
+apiVersion: reprocert.dev/v1
 kind: ReproducibilityClaim
 metadata:
   id: api-latency
@@ -196,7 +196,7 @@ The distinction matters: a crashed benchmark is not automatically evidence that 
 Use ReproCert directly in another repository:
 
 ```yaml
-- uses: AETHERXGLOBAL/reprocert@v0.2
+- uses: AETHERXGLOBAL/reprocert@v1
   id: reprocert
   with:
     claim: path/to/claim.yml
@@ -211,7 +211,7 @@ For untrusted pull requests, use least-privilege workflow permissions and never 
 
 ## Multi-claim suites
 
-ReproCert v0.2 can execute several independent claims under one aggregate report while preserving a separate certificate for every member claim.
+ReproCert v1 can execute several independent claims under one aggregate report while preserving a separate certificate for every member claim.
 
 ```bash
 reprocert suite examples/suite.yml \
@@ -317,7 +317,7 @@ A certificate self-digest is a stable content identifier. It is **not** a digita
 - [Governance](GOVERNANCE.md)
 - [Support](SUPPORT.md)
 
-## Current supported-alpha scope
+## Stable v1.0.0 product scope
 
 Included today:
 
@@ -367,13 +367,19 @@ See [Adoption Evidence](docs/ADOPTION.md).
 
 ## Project status
 
-**Final Supported Alpha — v0.2.2a1**
+**Stable v1.0.0 — publicly released and qualified within the documented product boundary.**
 
-ReproCert v0.2.2a1 is product-ready and supported within its documented Python/CLI/GitHub Action boundary. The exact public PyPI package passed the final qualification matrix across Ubuntu, Windows and macOS with Python 3.11–3.14, plus verdict/tamper falsification, repeated-run stability, package, adapter and stable-channel checks.
+- Immutable GitHub release: [v1.0.0](https://github.com/AETHERXGLOBAL/reprocert/releases/tag/v1.0.0).
+- Published package: [aetherx-reprocert==1.0.0](https://pypi.org/project/aetherx-reprocert/1.0.0/).
+- Protected major Action/install channel: [@v1](https://github.com/AETHERXGLOBAL/reprocert/tree/v1).
+- Verified public consumers: [v1 Public Consumer Qualification](https://github.com/AETHERXGLOBAL/reprocert/actions/runs/37846420495) — public PyPI wheel on 12 tested OS/Python combinations, real @v1 Action consumption, integrity/tamper checks and exact-source channel binding.
+- Release publication: [Release workflow](https://github.com/AETHERXGLOBAL/reprocert/actions/runs/37844876488) — version/source binding and PyPI Trusted Publishing succeeded.
 
-The designation is deliberately bounded: it does not claim independent third-party adoption, producer authentication from a certificate alone, universal future OS/runtime compatibility, scientific validity, security certification, or stable-v1 compatibility. Repository governance hardening is tracked separately and does not change the qualification of immutable `v0.2.2a1`.
+The previous `v0.2.2a1` Final Supported Alpha and protected `@v0.2` rollback channel remain preserved. Compatibility is forward-reader only: v1 reads supported Alpha artifacts, not the reverse.
 
-See [Current Product Status](docs/STATUS.md) for the qualification evidence and declared limitations.
+**Boundaries:** Certificate integrity is not producer authentication, evidence-source truth, scientific validation, independent external adoption, or a security certification. The runtime matrix proves only the tested GitHub-hosted configurations.
+
+See [Current Product Status](docs/STATUS.md) for exact qualification evidence, historical Alpha status and declared limitations.
 
 ## License
 
