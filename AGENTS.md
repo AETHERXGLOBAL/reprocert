@@ -12,3 +12,7 @@
 
 
 Refer to the repository README and contribution/release/quality rules for all project-specific obligations.
+
+## AX-GITHUB-BRAND-IDENTITY-001 — AETHER X GLOBAL publishing identity (staged adoption)
+
+For all new company GitHub-facing PRs, issues, commits, releases, comments and public docs, default to the organizational voice **AETHER X GLOBAL** (short **AETHER X**). Omit optional assistant/vendor-generated signatures, generator badges and tool co-author trailers from published drafts. **Never** misrepresent the real GitHub actor or author, impersonate a person, rewrite history, suppress mandatory notices or disclosures, alter tests/audit provenance, or claim human-only work without proof. Preserve upstream contribution rules, security/review/publication gates, licenses and truthful answers to provenance questions. Maintain detailed tool/evidence records internally when required. Public guidance: https://github.com/AETHERXGLOBAL/.github/pull/27 ; corporate operational decision: AETHERXGLOBAL/aether-x-governance PR #17. This local adoption takes effect only after actual review and merge of this PR; it grants no new permissions.
